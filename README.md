@@ -1,76 +1,76 @@
 # Wykuj.ai
 
-Wykuj.ai is a sophisticated AI-driven learning platform designed for mobile devices. It serves as an intelligent companion for students and professionals, enabling efficient management of study materials and interactive learning through advanced large language models.
+Wykuj.ai to zaawansowana platforma edukacyjna oparta na sztucznej inteligencji, stworzona z myślą o urządzeniach mobilnych. Aplikacja stanowi inteligentnego asystenta dla studentów i profesjonalistów, umożliwiając efektywne zarządzanie materiałami dydaktycznymi oraz interaktywną naukę przy wykorzystaniu wielkoformatowych modeli językowych.
 
-## Core Functionality
+## Kluczowe Funkcjonalności
 
-### Project Management
-The application allows users to organize their learning into distinct projects. Each project maintains its own set of materials, notes, and AI chat history, ensuring a structured approach to diverse subjects.
+### Zarządzanie Projektami
+Aplikacja pozwala na organizację nauki w ramach oddzielnych projektów. Każdy projekt posiada własną bazę materiałów, notatek oraz historię interakcji z AI, co zapewnia strukturalne podejście do wielu dziedzin nauki jednocześnie.
 
-### Intelligent Material Processing
-Wykuj.ai features a robust engine for local text extraction from various document formats. This allows the AI to "learn" directly from user-provided files without manual data entry.
-Supported formats include:
+### Inteligentne Przetwarzanie Materiałów
+Wykuj.ai posiada wbudowany silnik do lokalnej ekstrakcji tekstu z różnorodnych formatów dokumentów. Pozwala to sztucznej inteligencji na bezpośrednią naukę z plików dostarczonych przez użytkownika, eliminując konieczność ręcznego wprowadzania danych.
+Obsługiwane formaty:
 - Portable Document Format (PDF)
 - Microsoft Word (DOCX)
 - Microsoft Excel (XLSX)
 - Microsoft PowerPoint (PPTX)
-- Plain Text (TXT)
-- OpenDocument Formats (ODT, ODS, ODP)
+- Pliki tekstowe (TXT)
+- Formaty OpenDocument (ODT, ODS, ODP)
 
-### AI Synthesis and Interaction
-Leveraging the Groq API, the application provides high-speed, context-aware responses. The AI can analyze uploaded materials to answer specific questions, generate summaries, or explain complex concepts within the context of the user's project.
+### Synteza i Interakcja AI
+Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe odpowiedzi. AI analizuje wgrane materiały, aby odpowiadać na pytania, generować streszczenia lub wyjaśniać złożone zagadnienia w oparciu o kontekst danego projektu.
 
-## Technical Architecture
+## Architektura Techniczna
 
-### Frontend Framework
-- React Native with Expo SDK 54.
-- High-performance UI components.
-- NativeWind for consistent and scalable styling.
+### Framework Frontendowy
+- React Native z wykorzystaniem Expo SDK 54.
+- Zoptymalizowane komponenty interfejsu użytkownika.
+- Stylizacja przy użyciu NativeWind (Tailwind CSS dla React Native).
 
-### Data Management
-- Local Persistence: SQLite via expo-sqlite for secure, offline data storage.
-- State Management: Zustand for efficient, reactive application state handling.
+### Zarządzanie Danymi
+- Persystencja lokalna: SQLite (expo-sqlite) zapewniający bezpieczne i szybkie przechowywanie danych offline.
+- Zarządzanie stanem: Zustand dla wydajnej i reaktywnej obsługi logiki aplikacji.
 
-### Services and Processing
-- AI Integration: Groq API utilizing Llama 3 architectures.
-- Native Document Processing: Local binary parsing for maximum privacy and performance.
+### Usługi i Przetwarzanie
+- Integracja AI: API Groq wykorzystujące modele z rodziny Llama 3.
+- Przetwarzanie dokumentów: Lokalne parsowanie binarne w celu zapewnienia maksymalnej prywatności i wydajności.
 
-## Installation and Setup
+## Instalacja i Konfiguracja
 
-### Prerequisites
-- Node.js (LTS version recommended)
+### Wymagania wstępne
+- Node.js (zalecana wersja LTS)
 - Expo CLI
-- iOS or Android development environment (Xcode or Android Studio)
+- Środowisko programistyczne iOS lub Android (Xcode lub Android Studio)
 
-### Configuration
-Create a `.env` file in the root directory and provide your credentials:
+### Konfiguracja
+Należy utworzyć plik `.env` w katalogu głównym projektu i uzupełnić dane dostępowe:
 ```env
-EXPO_PUBLIC_GROQ_API_KEY=your_api_key_here
+EXPO_PUBLIC_GROQ_API_KEY=twoj_klucz_api
 ```
 
-### Development Execution
-1. Install dependencies:
+### Uruchomienie deweloperskie
+1. Instalacja zależności:
    ```bash
    npm install
    ```
-2. For standard development:
+2. Standardowe uruchomienie:
    ```bash
    npx expo start
    ```
-3. For native builds (required for PDF processing):
+3. Budowanie natywne (wymagane dla pełnej obsługi PDF):
    ```bash
    npx expo run:ios
-   # or
+   # lub
    npx expo run:android
    ```
 
-## Development and Contributions
-The project follows a modular architecture within the `src/` directory:
-- `components/`: Reusable UI elements and complex screen sections.
-- `screens/`: Top-level navigation views.
-- `store/`: Application state logic.
-- `database/`: SQL schema and data access objects.
-- `services/`: External API integrations.
+## Struktura Projektu
+Projekt opiera się na modułowej architekturze wewnątrz katalogu `src/`:
+- `components/`: Komponenty UI i złożone sekcje ekranów.
+- `screens/`: Główne widoki nawigacyjne.
+- `store/`: Logika stanu aplikacji.
+- `database/`: Schematy SQL i obiekty dostępu do danych (DAO).
+- `services/`: Integracje z zewnętrznymi API.
 
-## License
-Private and confidential. All rights reserved.
+## Licencja
+Projekt prywatny. Wszelkie prawa zastrzeżone.
