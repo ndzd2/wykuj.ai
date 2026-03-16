@@ -1,20 +1,57 @@
+import React, { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import HomeScreen from './src/screens/HomeScreen';
+import ProjectDetailScreen from './src/screens/ProjectDetailScreen';
+import { initDatabase } from './src/database/db';
+import { useStore } from './src/store/useStore';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const fetchProjects = useStore(state => state.fetchProjects);
+
+  useEffect(() => {
+    initDatabase()
+      .then(() => {
+        console.log('Database initialized successfully');
+        fetchProjects();
+      })
+      .catch(err => console.error('Database initialization failed', err));
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style="light" />
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: '#0f172a',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+            contentStyle: {
+              backgroundColor: '#0f172a',
+            }
+          }}
+        >
+          <Stack.Screen 
+            name="Home" 
+            component={HomeScreen} 
+            options={{ title: 'Wykuj.AI' }}
+          />
+          <Stack.Screen 
+            name="ProjectDetail" 
+            component={ProjectDetailScreen}
+            options={({ route }) => ({ title: route.params.project.name })}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
