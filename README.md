@@ -73,4 +73,4 @@ Projekt opiera się na modułowej architekturze wewnątrz katalogu `src/`:
 - `services/`: Integracje z zewnętrznymi API.
 
 ## Licencja
-Projekt prywatny. Wszelkie prawa zastrzeżone.
+Projekt prywatny. Wszystkie prawa zastrzeżone. Szczegóły znajdują się w pliku [LICENSE](LICENSE).
