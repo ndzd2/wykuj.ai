@@ -4,6 +4,11 @@ import { useStore } from '../store/useStore';
 import { FileText, Plus, X, UploadCloud, Info, Trash2, Edit3 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { extractText } from 'expo-pdf-text-extract';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as mammoth from 'mammoth/mammoth.browser';
+import * as XLSX from 'xlsx';
+import { Buffer } from 'buffer';
+import { parsePptx } from 'pptx-parser';
 
 const MaterialsComponent = () => {
   const { materials, currentProject, addMaterial, updateMaterial, deleteMaterial } = useStore();
@@ -16,31 +21,78 @@ const MaterialsComponent = () => {
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/plain', 'application/pdf'],
+        type: ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
         copyToCacheDirectory: true,
       });
 
       if (!result.canceled) {
         const file = result.assets[0];
         setFileName(file.name);
+        const fileUri = file.uri;
+        const mimeType = file.mimeType || '';
+        const extension = file.name.split('.').pop().toLowerCase();
 
-        if (file.mimeType === 'application/pdf') {
-          setIsExtracting(true);
-          try {
-            const text = await extractText(file.uri);
-            if (text) {
-              setFileContent(text);
-            } else {
-              Alert.alert('Uwaga', 'Nie udało się wyciągnąć tekstu z tego pliku PDF. Może to być skan (obraz).');
-            }
-          } catch (err) {
-            console.error('PDF Extraction Error:', err);
-            Alert.alert('Błąd', 'Wystąpił problem podczas czytania pliku PDF.');
-          } finally {
-            setIsExtracting(false);
+        setIsExtracting(true);
+        try {
+          if (mimeType === 'application/pdf' || extension === 'pdf') {
+            const text = await extractText(fileUri);
+            if (text) setFileContent(text);
+            else Alert.alert('Uwaga', 'Nie udało się wyciągnąć tekstu z tego pliku PDF.');
           }
-        } else {
-          Alert.alert('Plik wybrany', 'Wklej treść poniżej (ekstrakcja dla .txt wkrótce).');
+          else if (mimeType === 'text/plain' || extension === 'txt') {
+            const text = await FileSystem.readAsStringAsync(fileUri);
+            setFileContent(text);
+          }
+          else if (['docx', 'pptx', 'xlsx', 'odt', 'odp', 'ods'].includes(extension)) {
+            const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
+            const arrayBuffer = Buffer.from(base64, 'base64').buffer;
+
+            if (extension === 'docx') {
+              const result = await mammoth.convertToRawText({ arrayBuffer });
+              setFileContent(result.value);
+            }
+            else if (extension === 'xlsx' || extension === 'ods') {
+              const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+              let allText = '';
+              workbook.SheetNames.forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                allText += `--- Arkusz: ${sheetName} ---\n`;
+                allText += XLSX.utils.sheet_to_txt(sheet) + '\n\n';
+              });
+              setFileContent(allText);
+            }
+            else if (extension === 'pptx') {
+              try {
+                // pptx-parser usually takes a buffer or ArrayBuffer
+                const result = await parsePptx(arrayBuffer);
+                let allText = '';
+                result.slides.forEach((slide, index) => {
+                  allText += `--- Slajd ${index + 1} ---\n`;
+                  slide.elements.forEach(el => {
+                    if (el.type === 'text' && el.text) {
+                      allText += el.text + '\n';
+                    }
+                  });
+                  allText += '\n';
+                });
+                setFileContent(allText);
+              } catch (err) {
+                console.error('PPTX Error:', err);
+                Alert.alert('Błąd', 'Nie udało się przetworzyć prezentacji PPTX.');
+              }
+            }
+            else {
+              Alert.alert('W trakcie wdrażania', `Obsługa formatu .${extension} jest jeszcze w fazie testów. Spróbuj PDF lub Word .docx`);
+            }
+          }
+          else {
+            Alert.alert('Format nieobsługiwany', 'Ten format pliku nie jest jeszcze obsługiwany do automatycznej ekstrakcji.');
+          }
+        } catch (err) {
+          console.error('Extraction Error:', err);
+          Alert.alert('Błąd', 'Wystąpił problem podczas czytania pliku.');
+        } finally {
+          setIsExtracting(false);
         }
       }
     } catch (err) {
@@ -121,7 +173,7 @@ const MaterialsComponent = () => {
       <View className="bg-slate-800/50 p-4 rounded-2xl mb-6 border border-slate-700 flex-row items-start">
         <Info color="#6366f1" size={16} style={{ marginTop: 2, marginRight: 8 }} />
         <Text className="text-slate-400 text-xs flex-1 leading-5">
-          Dodaj materiały (PDF, notatki), aby AI mogło się z nich uczyć. Tekst z plików PDF zostanie wyciągnięty automatycznie.
+          Dodaj materiały (PDF, Office, TXT), aby AI mogło się z nich uczyć. Treść zostanie wyciągnięta automatycznie.
         </Text>
       </View>
 
@@ -175,7 +227,7 @@ const MaterialsComponent = () => {
                 <UploadCloud color="#6366f1" size={20} />
               )}
               <Text className="text-slate-300 ml-2 font-medium">
-                {isExtracting ? 'Czytam PDF...' : 'Wybierz plik (PDF/TXT)'}
+                {isExtracting ? 'Czytam plik...' : 'Wybierz plik (PDF/DOCX/TXT...)'}
               </Text>
             </TouchableOpacity>
 
@@ -191,7 +243,7 @@ const MaterialsComponent = () => {
             <Text className="text-slate-400 mb-2 ml-1 text-xs uppercase tracking-widest font-bold">Treść</Text>
             <TextInput
               className="bg-slate-800 text-white p-4 rounded-xl mb-6 border border-slate-700 h-40"
-              placeholder="Tutaj pojawi się tekst z PDF lub wklej go ręcznie..."
+              placeholder="Tutaj pojawi się wyciągnięty tekst..."
               placeholderTextColor="#64748b"
               value={fileContent}
               onChangeText={setFileContent}
