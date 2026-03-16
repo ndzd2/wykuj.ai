@@ -1,6 +1,6 @@
-# Wykuj.ai
+# wykuj.ai
 
-Wykuj.ai to zaawansowana platforma edukacyjna oparta na sztucznej inteligencji, stworzona z myślą o urządzeniach mobilnych. Aplikacja stanowi inteligentnego asystenta dla studentów i profesjonalistów, umożliwiając efektywne zarządzanie materiałami dydaktycznymi oraz interaktywną naukę przy wykorzystaniu wielkoformatowych modeli językowych.
+wykuj.ai to zaawansowana platforma edukacyjna oparta na sztucznej inteligencji, stworzona z myślą o urządzeniach mobilnych. Aplikacja stanowi inteligentnego asystenta dla studentów i profesjonalistów, umożliwiając efektywne zarządzanie materiałami dydaktycznymi oraz interaktywną naukę przy wykorzystaniu wielkoformatowych modeli językowych.
 
 ## Kluczowe Funkcjonalności
 
@@ -8,7 +8,7 @@ Wykuj.ai to zaawansowana platforma edukacyjna oparta na sztucznej inteligencji, 
 Aplikacja pozwala na organizację nauki w ramach oddzielnych projektów. Każdy projekt posiada własną bazę materiałów, notatek oraz historię interakcji z AI, co zapewnia strukturalne podejście do wielu dziedzin nauki jednocześnie.
 
 ### Inteligentne Przetwarzanie Materiałów
-Wykuj.ai posiada wbudowany silnik do lokalnej ekstrakcji tekstu z różnorodnych formatów dokumentów. Pozwala to sztucznej inteligencji na bezpośrednią naukę z plików dostarczonych przez użytkownika, eliminując konieczność ręcznego wprowadzania danych.
+wykuj.ai posiada wbudowany silnik do lokalnej ekstrakcji tekstu z różnorodnych formatów dokumentów. Pozwala to sztucznej inteligencji na bezpośrednią naukę z plików dostarczonych przez użytkownika, eliminując konieczność ręcznego wprowadzania danych.
 Obsługiwane formaty:
 - Portable Document Format (PDF)
 - Microsoft Word (DOCX)
