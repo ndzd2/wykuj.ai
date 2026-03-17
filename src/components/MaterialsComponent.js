@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useStore } from '../store/useStore';
-import { FileText, Plus, X, UploadCloud, Info, Trash2, Edit3 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { extractText } from 'expo-pdf-text-extract';
 import * as FileSystem from 'expo-file-system';
@@ -9,6 +8,10 @@ import * as mammoth from 'mammoth/mammoth.browser';
 import * as XLSX from 'xlsx';
 import { Buffer } from 'buffer';
 import { parsePptx } from 'pptx-parser';
+import * as ImagePicker from 'expo-image-picker';
+import { aiService } from '../services/aiService';
+import { Mic, Camera, Image as ImageIcon, Music, FileText, Plus, X, UploadCloud, Info, Trash2, Edit3 } from 'lucide-react-native';
+import { useAudioRecorder, requestRecordingPermissionsAsync, getRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
 
 const MaterialsComponent = () => {
   const { materials, currentProject, addMaterial, updateMaterial, deleteMaterial } = useStore();
@@ -17,6 +20,15 @@ const MaterialsComponent = () => {
   const [fileName, setFileName] = useState('');
   const [fileContent, setFileContent] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
+  const [recording, setRecording] = useState(null); // Keep for legacy cleanup if needed, but we use recorder hook now
+  const [isRecording, setIsRecording] = useState(false);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  React.useEffect(() => {
+    return () => {
+      // Cleanup handled by hook mostly, but safe to stop if still active
+    };
+  }, []);
 
   const handlePickDocument = async () => {
     try {
@@ -96,6 +108,124 @@ const MaterialsComponent = () => {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handlePickAudio = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['audio/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled) {
+        const file = result.assets[0];
+        setFileName(`Transkrypcja: ${file.name}`);
+        setIsExtracting(true);
+        try {
+          const text = await aiService.transcribeAudio(file.uri, file.name, file.mimeType);
+          setFileContent(text);
+        } catch (err) {
+          Alert.alert('Błąd', err.message);
+        } finally {
+          setIsExtracting(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOCR = async (useCamera = false) => {
+    try {
+      let result;
+      if (useCamera) {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Błąd', 'Brak dostępu do aparatu.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          base64: true,
+          quality: 0.8,
+        });
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Błąd', 'Brak dostępu do galerii.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          base64: true,
+          quality: 0.8,
+        });
+      }
+
+      if (!result.canceled) {
+        const asset = result.assets[0];
+        setFileName(`Skan: ${new Date().toLocaleTimeString()}`);
+        setIsExtracting(true);
+        try {
+          const text = await aiService.extractTextFromImage(asset.base64);
+          setFileContent(text);
+        } catch (err) {
+          Alert.alert('Błąd', err.message);
+        } finally {
+          setIsExtracting(false);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      // Set audio mode for recording
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+
+      // Check current permission
+      let permission = await getRecordingPermissionsAsync();
+      
+      if (permission.status !== 'granted') {
+        permission = await requestRecordingPermissionsAsync();
+      }
+
+      if (!permission.granted) {
+        Alert.alert('Błąd', 'Brak dostępu do mikrofonu.');
+        return;
+      }
+
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+      Alert.alert('Błąd', 'Nie udało się rozpocząć nagrywania.');
+    }
+  };
+
+  const handleStopRecording = async () => {
+    setIsRecording(false);
+    try {
+      await recorder.stop();
+      const uri = recorder.uri;
+      
+      setFileName(`Nagranie: ${new Date().toLocaleTimeString()}`);
+      setIsExtracting(true);
+      try {
+        const text = await aiService.transcribeAudio(uri, 'recording.m4a', 'audio/m4a');
+        setFileContent(text);
+      } catch (err) {
+        Alert.alert('Błąd', err.message);
+      } finally {
+        setIsExtracting(false);
+      }
+    } catch (err) {
+      console.error('Failed to stop recording', err);
     }
   };
 
@@ -228,55 +358,120 @@ const MaterialsComponent = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1 justify-end bg-black/60"
         >
-          <View className="bg-slate-900 p-8 rounded-t-[40px] border-t border-slate-700">
+          <View className="bg-slate-900 p-6 rounded-t-[40px] border-t border-slate-700 max-h-[90%]">
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-white text-2xl font-bold">
-                {editingId ? 'Edytuj Materiał' : 'Nowy Materiał'}
-              </Text>
-              <TouchableOpacity onPress={closeModal}>
-                <X color="#94a3b8" size={24} />
+              <View>
+                <Text className="text-white text-2xl font-bold">
+                  {editingId ? 'Edytuj Materiał' : 'Nowy Materiał'}
+                </Text>
+                <Text className="text-slate-400 text-xs mt-1">AI pomoże Ci wyciągnąć naukę z treści</Text>
+              </View>
+              <TouchableOpacity
+                onPress={closeModal}
+                className="bg-slate-800 p-2 rounded-full"
+              >
+                <X color="#94a3b8" size={20} />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              className="bg-slate-800 p-4 rounded-xl mb-4 border border-slate-700 items-center flex-row justify-center"
-              onPress={handlePickDocument}
+            <Text className="text-slate-400 mb-3 ml-1 text-[10px] uppercase tracking-[2px] font-bold">Wybierz źródło treści</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              className="flex-row mb-6 py-2"
+              contentContainerStyle={{ paddingRight: 20 }}
             >
-              {isExtracting ? (
-                <ActivityIndicator color="#6366f1" size="small" />
-              ) : (
-                <UploadCloud color="#6366f1" size={20} />
+              <TouchableOpacity
+                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 items-center justify-center mr-3 w-28 h-24"
+                onPress={handlePickDocument}
+              >
+                <View className="bg-indigo-500/10 p-2 rounded-xl mb-2">
+                  <UploadCloud color="#6366f1" size={20} />
+                </View>
+                <Text className="text-slate-300 text-[10px] font-bold text-center">DOKUMENT</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 items-center justify-center mr-3 w-28 h-24"
+                onPress={() => handleOCR(false)}
+              >
+                <View className="bg-emerald-500/10 p-2 rounded-xl mb-2">
+                  <ImageIcon color="#10b981" size={20} />
+                </View>
+                <Text className="text-slate-300 text-[10px] font-bold text-center">GALERIA (OCR)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 items-center justify-center mr-3 w-28 h-24"
+                onPress={() => handleOCR(true)}
+              >
+                <View className="bg-amber-500/10 p-2 rounded-xl mb-2">
+                  <Camera color="#f59e0b" size={20} />
+                </View>
+                <Text className="text-slate-300 text-[10px] font-bold text-center">APARAT (OCR)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 items-center justify-center mr-3 w-28 h-24"
+                onPress={handlePickAudio}
+              >
+                <View className="bg-pink-500/10 p-2 rounded-xl mb-2">
+                  <Music color="#ec4899" size={20} />
+                </View>
+                <Text className="text-slate-300 text-[10px] font-bold text-center">AUDIO</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className={`p-4 rounded-2xl border items-center justify-center w-28 h-24 ${isRecording ? 'bg-red-500/10 border-red-500/50' : 'bg-slate-800/50 border-slate-700'}`}
+                onPress={isRecording ? handleStopRecording : handleStartRecording}
+              >
+                <View className={`${isRecording ? 'bg-red-500/20' : 'bg-indigo-500/10'} p-2 rounded-xl mb-2`}>
+                  <Mic color={isRecording ? "#ef4444" : "#6366f1"} size={20} />
+                </View>
+                <Text className={`${isRecording ? 'text-red-400' : 'text-slate-300'} text-[10px] font-bold text-center`}>
+                  {isRecording ? 'STOP' : 'NAGRAJ'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <ScrollView className="mb-4 pr-1">
+              {isExtracting && (
+                <View className="mb-6 p-4 bg-indigo-500/10 rounded-2xl flex-row items-center border border-indigo-500/20">
+                  <ActivityIndicator color="#6366f1" size="small" />
+                  <Text className="text-indigo-400 ml-3 font-semibold text-xs">AI analizuje materiał...</Text>
+                </View>
               )}
-              <Text className="text-slate-300 ml-2 font-medium">
-                {isExtracting ? 'Czytam plik...' : 'Wybierz plik (PDF/DOCX/TXT...)'}
-              </Text>
-            </TouchableOpacity>
 
-            <Text className="text-slate-400 mb-2 ml-1 text-xs uppercase tracking-widest font-bold">Nazwa</Text>
-            <TextInput
-              className="bg-slate-800 text-white p-4 rounded-xl mb-4 border border-slate-700"
-              placeholder="np. Notatki z wykładu"
-              placeholderTextColor="#64748b"
-              value={fileName}
-              onChangeText={setFileName}
-            />
+              <View className="mb-5">
+                <Text className="text-slate-500 mb-2 ml-1 text-[10px] uppercase tracking-widest font-bold">Nazwa materiału</Text>
+                <TextInput
+                  className="bg-slate-800/50 text-white p-4 rounded-2xl border border-slate-700 text-base"
+                  placeholder="np. Notatki z biologii"
+                  placeholderTextColor="#475569"
+                  value={fileName}
+                  onChangeText={setFileName}
+                />
+              </View>
 
-            <Text className="text-slate-400 mb-2 ml-1 text-xs uppercase tracking-widest font-bold">Treść</Text>
-            <TextInput
-              className="bg-slate-800 text-white p-4 rounded-xl mb-6 border border-slate-700 h-40"
-              placeholder="Tutaj pojawi się wyciągnięty tekst..."
-              placeholderTextColor="#64748b"
-              value={fileContent}
-              onChangeText={setFileContent}
-              multiline
-              textAlignVertical="top"
-            />
+              <View className="mb-6">
+                <Text className="text-slate-500 mb-2 ml-1 text-[10px] uppercase tracking-widest font-bold">Treść notatki</Text>
+                <TextInput
+                  className="bg-slate-800/50 text-white p-4 rounded-2xl border border-slate-700 h-48 text-base"
+                  placeholder="Wpisz tekst lub skorzystaj z opcji powyżej..."
+                  placeholderTextColor="#475569"
+                  value={fileContent}
+                  onChangeText={setFileContent}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
+            </ScrollView>
 
             <TouchableOpacity
-              className="bg-indigo-600 p-5 rounded-2xl items-center shadow-lg shadow-indigo-500/30"
+              className="bg-indigo-600 p-5 rounded-[22px] items-center shadow-xl shadow-indigo-500/40"
               onPress={handleSaveMaterial}
             >
-              <Text className="text-white font-bold text-lg">
+              <Text className="text-white font-bold text-lg tracking-wide">
                 {editingId ? 'Zapisz zmiany' : 'Dodaj do projektu'}
               </Text>
             </TouchableOpacity>

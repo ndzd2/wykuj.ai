@@ -13,7 +13,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.wykuj-ai"
+      "bundleIdentifier": "com.anonymous.wykuj-ai",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Daj nam dostęp do mikrofonu, abyś mógł nagrywać notatki głosowe.",
+        "NSCameraUsageDescription": "Daj nam dostęp do aparatu, abyś mógł skanować dokumenty (OCR).",
+        "NSPhotoLibraryUsageDescription": "Daj nam dostęp do galerii, abyś mógł wybierać zdjęcia dokumentów."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +33,25 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Daj nam dostęp do mikrofonu, abyś mógł nagrywać notatki głosowe."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Daj nam dostęp do aparatu, abyś mógł skanować dokumenty (OCR)."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Daj nam dostęp do galerii, abyś mógł wybierać zdjęcia dokumentów."
+        }
+      ]
     ]
   }
 }

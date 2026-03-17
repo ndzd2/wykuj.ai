@@ -1,6 +1,8 @@
 import { CONFIG } from '../config';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'; // Alias for GROQ_URL for vision model
+const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
 export const aiService = {
   async sendMessage(messages, model = CONFIG.MODELS.PRIMARY) {
@@ -86,6 +88,71 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
     } catch (error) {
       console.error('Failed to parse quiz JSON:', error, response);
       throw new Error('Nie udało się wygenerować quizu w poprawnym formacie.');
+    }
+  },
+
+  async transcribeAudio(uri, filename = 'audio.m4a', mimeType = 'audio/m4a') {
+    const formData = new FormData();
+    formData.append('file', {
+      uri,
+      name: filename,
+      type: mimeType,
+    });
+    formData.append('model', 'whisper-large-v3');
+    formData.append('language', 'pl');
+    formData.append('response_format', 'json');
+
+    try {
+      const response = await fetch(GROQ_AUDIO_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CONFIG.GROQ_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'Błąd transkrypcji');
+      return result.text;
+    } catch (error) {
+      console.error('Transcription error:', error);
+      throw new Error('Nie udało się zamienić nagrania na tekst.');
+    }
+  },
+
+  async extractTextFromImage(base64Image) {
+    try {
+      const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${CONFIG.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.2-11b-vision-preview',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Przepisz cały tekst z tego zdjęcia. Zwróć tylko czysty tekst, bez żadnych komentarzy.' },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:image/jpeg;base64,${base64Image}`,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || 'Błąd OCR');
+      return result.choices[0].message.content;
+    } catch (error) {
+      console.error('OCR error:', error);
+      throw new Error('Nie udało się wyciągnąć tekstu ze zdjęcia.');
     }
   }
 };
