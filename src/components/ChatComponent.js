@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
-import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2, Search, Volume2, Square } from 'lucide-react-native';
+import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2, Search, Volume2, Square, Download } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { aiService } from '../services/aiService';
 import { useStore } from '../store/useStore';
 
@@ -62,6 +64,55 @@ const ChatComponent = () => {
   const handleNewChat = async () => {
     if (!currentProject) return;
     await createNewSession(currentProject.id);
+  };
+
+  const handleExportPDF = async () => {
+    if (!currentSession || chatMessages.length === 0) {
+      Alert.alert('Info', 'Brak wiadomości do wyeksportowania.');
+      return;
+    }
+
+    const htmlContent = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+          <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; background-color: #fff; }
+            h1 { color: #4f46e5; text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+            .meta { color: #64748b; font-size: 12px; text-align: center; margin-bottom: 40px; }
+            .message { margin-bottom: 25px; padding: 15px; border-radius: 10px; }
+            .user { background-color: #f1f5f9; border-right: 5px solid #4f46e5; text-align: right; }
+            .assistant { background-color: #f8fafc; border-left: 5px solid #818cf8; }
+            .role { font-weight: bold; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: #64748b; }
+            .content { font-size: 16px; line-height: 1.6; }
+            .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>Wykuj.AI - Chat Export</h1>
+          <div class="meta">
+            <strong>Temat:</strong> ${currentSession.title}<br>
+            <strong>Projekt:</strong> ${currentProject.name}<br>
+            <strong>Data wygenerowania:</strong> ${new Date().toLocaleString('pl-PL')}
+          </div>
+          ${chatMessages.map(msg => `
+            <div class="message ${msg.role}">
+              <div class="role">${msg.role === 'user' ? 'Ty' : 'AI Wykuj'}</div>
+              <div class="content">${msg.content}</div>
+            </div>
+          `).join('')}
+          <div class="footer">Wygenerowano przez aplikację Wykuj.AI</div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      console.error('PDF Export Error:', error);
+      Alert.alert('Błąd', 'Nie udało się wyeksportować pliku PDF.');
+    }
   };
 
   const renderMessage = ({ item }) => (
@@ -175,13 +226,22 @@ const ChatComponent = () => {
           )}
         </View>
 
-        <TouchableOpacity 
-          onPress={handleNewChat}
-          className="flex-row items-center bg-indigo-600 px-3 py-2 rounded-lg"
-        >
-          <Plus size={16} color="white" className="mr-1" />
-          <Text className="text-white text-xs font-bold">Nowy</Text>
-        </TouchableOpacity>
+        <View className="flex-row items-center">
+          <TouchableOpacity 
+            onPress={handleExportPDF}
+            className="p-2 bg-slate-800 rounded-lg border border-slate-700 mr-2"
+          >
+            <Download size={18} color="#6366f1" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={handleNewChat}
+            className="flex-row items-center bg-indigo-600 px-3 py-2 rounded-lg"
+          >
+            <Plus size={16} color="white" className="mr-1" />
+            <Text className="text-white text-xs font-bold">Nowy</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList

@@ -442,5 +442,22 @@ export const useStore = create((set, get) => ({
     } catch (error) {
       console.error(error);
     }
+  },
+
+  generateStudyGuide: async () => {
+    const { currentProject, materials } = get();
+    if (!currentProject || materials.length === 0) return null;
+
+    set({ loading: true });
+    try {
+      const context = materials.map(m => `Plik: ${m.name}\nTreść: ${m.content}`).join('\n\n');
+      const studyGuide = await aiService.generateStudyGuide(context);
+      set({ loading: false });
+      return studyGuide;
+    } catch (error) {
+      console.error(error);
+      set({ loading: false });
+      throw error;
+    }
   }
 }));

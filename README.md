@@ -34,12 +34,14 @@ Aplikacja oferuje zaawansowany system nauki oparty na materiałach generowanych 
 
 ### Eksport i Udostępnianie
 wykuj.ai pozwala na łatwe dzielenie się wiedzą poza aplikacją:
-- **Eksport do PDF**: Generowanie profesjonalnych, gotowych do wydruku dokumentów z quizami i kluczami odpowiedzi.
+- **Eksport do PDF**: Generowanie profesjonalnych dokumentów z treścią rozmów, quizami oraz planami nauki.
+- **Udostępnianie**: Bezpośrednia integracja z systemowym menu udostępniania.
 - **Eksport Markdown**: Szybkie udostępnianie treści quizów i notatek w formacie tekstowym.
 
 ### Synteza i Interakcja AI
 Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe odpowiedzi. 
 - **Kontekst Projektu**: AI analizuje wgrane materiały, aby odpowiadać na pytania lub generować streszczenia.
+- **Głos AI (Text-to-Speech)**: Możliwość odczytywania odpowiedzi asystenta na głos dzięki integracji z `expo-speech`.
 - **Inteligentne Tytuły (Smart Titles)**: AI automatycznie nadaje rozmowom trafne tytuły na podstawie ich treści.
 - **Manualna Edycja**: Możliwość ręcznej zmiany nazwy sesji czatu przez użytkownika.
 

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Brain, FileQuestion } from 'lucide-react-native';
+import { Brain, FileQuestion, Sparkles } from 'lucide-react-native';
 import FlashcardsView from './FlashcardsView';
 import QuizView from './QuizView';
+import StudyGuide from './StudyGuide';
 
 const StudyModule = () => {
-  const [mode, setMode] = useState('menu'); // 'menu', 'flashcards', 'quiz'
+  const [mode, setMode] = useState('menu'); // 'menu', 'flashcards', 'quiz', 'guide'
 
   if (mode === 'flashcards') {
     return (
@@ -25,6 +26,17 @@ const StudyModule = () => {
           <Text style={styles.backButtonText}>← Powrót do menu</Text>
         </TouchableOpacity>
         <QuizView />
+      </View>
+    );
+  }
+
+  if (mode === 'guide') {
+    return (
+      <View style={{ flex: 1 }}>
+        <TouchableOpacity style={styles.backButton} onPress={() => setMode('menu')}>
+          <Text style={styles.backButtonText}>← Powrót do menu</Text>
+        </TouchableOpacity>
+        <StudyGuide />
       </View>
     );
   }
@@ -56,6 +68,19 @@ const StudyModule = () => {
         <View style={styles.optionInfo}>
           <Text style={styles.optionTitle}>Quizy AI</Text>
           <Text style={styles.optionDescription}>Sprawdź swoją wiedzę w testach wyboru.</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.optionCard} 
+        onPress={() => setMode('guide')}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: '#f59e0b20' }]}>
+          <Sparkles color="#f59e0b" size={32} />
+        </View>
+        <View style={styles.optionInfo}>
+          <Text style={styles.optionTitle}>Plan Nauki AI</Text>
+          <Text style={styles.optionDescription}>Osobista roadmapa i kluczowe pojęcia.</Text>
         </View>
       </TouchableOpacity>
     </View>

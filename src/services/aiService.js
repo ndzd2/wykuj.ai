@@ -168,5 +168,43 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
       console.error('OCR error:', error);
       throw new Error('Nie udało się wyciągnąć tekstu ze zdjęcia.');
     }
+  },
+
+  async generateStudyGuide(materialsContext) {
+    try {
+      const response = await fetch(GROQ_API_URL, { // Using GROQ_API_URL for chat completions
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CONFIG.GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile", // Model specified in the original snippet
+          messages: [
+            {
+              role: "system",
+              content: "Jesteś ekspertem edukacyjnym. Na podstawie dostarczonych materiałów przygotuj profesjonalny 'Plan Nauki' (Study Guide). Odpowiedź MUSI być w formacie JSON i zawierać:\n1. 'summary': ogólne podsumowanie materiału (max 3-4 zdania).\n2. 'keyTerms': lista 5-8 kluczowych pojęć wraz z krótkimi definicjami.\n3. 'roadmap': lista 3-5 kroków jak najlepiej opanować ten materiał.\n4. 'predictedQuestions': 3-5 pytań, które mogą pojawić się na egzaminie/sprawdzianie."
+            },
+            {
+              role: "user",
+              content: `Oto materiały do analizy:\n\n${materialsContext}`
+            }
+          ],
+          response_format: { type: "json_object" }
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || 'Błąd generowania planu nauki');
+
+      // The original snippet used response.choices[0].message.content, adapting to fetch response structure
+      const jsonString = data.choices?.[0]?.message?.content;
+      if (!jsonString) throw new Error('Brak odpowiedzi od AI (pusty wynik) dla planu nauki.');
+
+      return JSON.parse(jsonString);
+    } catch (error) {
+      console.error("Study Guide Generation Error:", error);
+      throw new Error('Nie udało się wygenerować planu nauki w poprawnym formacie.');
+    }
   }
 };
