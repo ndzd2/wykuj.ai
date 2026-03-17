@@ -7,14 +7,19 @@ const openDB = async () => {
 
 export const initDatabase = async () => {
   const db = await openDB();
-  
+
   // Basic migrations/initialization
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
+      name TEXT,
+      first_name TEXT,
+      last_name TEXT,
+      phone TEXT,
       password_hash TEXT NOT NULL,
+      premium_until DATETIME DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS projects (
@@ -136,22 +141,80 @@ export const initDatabase = async () => {
       await db.execAsync("ALTER TABLE chat_messages ADD COLUMN session_id INTEGER;");
       console.log('Added session_id column to chat_messages table');
     } catch (error) {
-           console.error('Migration failed (chat_messages):', error);
+      console.error('Migration failed (chat_messages):', error);
+    }
+  }
+
+  // Migration: Add name, first_name, last_name, phone, premium_until to users
+  const userInfo = await db.getAllAsync("PRAGMA table_info(users);");
+
+  const hasName = userInfo.some(column => column.name === 'name');
+  if (!hasName) {
+    try {
+      await db.execAsync("ALTER TABLE users ADD COLUMN name TEXT;");
+      await db.execAsync("ALTER TABLE users ADD COLUMN first_name TEXT;");
+      await db.execAsync("ALTER TABLE users ADD COLUMN last_name TEXT;");
+      await db.execAsync("ALTER TABLE users ADD COLUMN phone TEXT;");
+      console.log('Added profile columns to users table');
+    } catch (error) {
+      console.error('Migration failed (profile columns):', error);
+    }
+  }
+
+  const hasPremiumUntil = userInfo.some(column => column.name === 'premium_until');
+  if (!hasPremiumUntil) {
+    try {
+      await db.execAsync("ALTER TABLE users ADD COLUMN premium_until DATETIME DEFAULT NULL;");
+      console.log('Added premium_until column to users table');
+    } catch (error) {
+      console.error('Migration failed (premium_until):', error);
     }
   }
 };
 
 export const database = {
   // --- Auth Methods ---
-  registerUser: async (email, passwordHash) => {
+  registerUser: async (email, passwordHash, name) => {
     const db = await openDB();
-    const result = await db.runAsync('INSERT INTO users (email, password_hash) VALUES (?, ?);', [email, passwordHash]);
+    const result = await db.runAsync(
+      'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?);',
+      [email, passwordHash, name]
+    );
     return result.lastInsertRowId;
+  },
+
+  updateUserProfile: async (userId, data) => {
+    const db = await openDB();
+    const { first_name, last_name, phone } = data;
+    await db.runAsync(
+      'UPDATE users SET first_name = ?, last_name = ?, phone = ? WHERE id = ?;',
+      [first_name, last_name, phone, userId]
+    );
+  },
+
+  updateUserEmail: async (userId, email) => {
+    const db = await openDB();
+    await db.runAsync('UPDATE users SET email = ? WHERE id = ?;', [email, userId]);
+  },
+
+  updateUserPassword: async (userId, passwordHash) => {
+    const db = await openDB();
+    await db.runAsync('UPDATE users SET password_hash = ? WHERE id = ?;', [passwordHash, userId]);
   },
 
   getUserByEmail: async (email) => {
     const db = await openDB();
     return await db.getFirstAsync('SELECT * FROM users WHERE email = ?;', [email]);
+  },
+
+  getUserById: async (id) => {
+    const db = await openDB();
+    return await db.getFirstAsync('SELECT * FROM users WHERE id = ?;', [id]);
+  },
+
+  updateUserPremium: async (userId, untilDate) => {
+    const db = await openDB();
+    await db.runAsync('UPDATE users SET premium_until = ? WHERE id = ?;', [untilDate, userId]);
   },
 
   // --- Scoped Project Methods ---
@@ -191,7 +254,7 @@ export const database = {
   addFlashcard: async (projectId, question, answer) => {
     const db = await openDB();
     const result = await db.runAsync(
-      'INSERT INTO flashcards (project_id, question, answer, next_review) VALUES (?, ?, ?, CURRENT_TIMESTAMP);', 
+      'INSERT INTO flashcards (project_id, question, answer, next_review) VALUES (?, ?, ?, CURRENT_TIMESTAMP);',
       [projectId, question, answer]
     );
     return result.lastInsertRowId;
@@ -199,7 +262,7 @@ export const database = {
 
   getFlashcards: async (projectId, includeLearned = false) => {
     const db = await openDB();
-    const query = includeLearned 
+    const query = includeLearned
       ? 'SELECT * FROM flashcards WHERE project_id = ? ORDER BY created_at DESC;'
       : 'SELECT * FROM flashcards WHERE project_id = ? AND is_learned = 0 ORDER BY created_at DESC;';
     return await db.getAllAsync(query, [projectId]);
@@ -227,7 +290,7 @@ export const database = {
     const db = await openDB();
     for (const card of flashcards) {
       await db.runAsync(
-        'INSERT INTO flashcards (project_id, question, answer, next_review) VALUES (?, ?, ?, CURRENT_TIMESTAMP);', 
+        'INSERT INTO flashcards (project_id, question, answer, next_review) VALUES (?, ?, ?, CURRENT_TIMESTAMP);',
         [projectId, card.question, card.answer]
       );
     }
@@ -246,9 +309,12 @@ export const database = {
   addQuizQuestions: async (quizId, questions) => {
     const db = await openDB();
     for (const q of questions) {
+      // Handle both single and multiple correct answers from AI
+      const correctAnswer = q.correct_answer || (Array.isArray(q.correct_answers) ? q.correct_answers.join(', ') : '');
+
       await db.runAsync(
         'INSERT INTO quiz_questions (quiz_id, question, options, correct_answer) VALUES (?, ?, ?, ?);',
-        [quizId, q.question, JSON.stringify(q.options), q.correct_answer]
+        [quizId, q.question, JSON.stringify(q.options), correctAnswer]
       );
     }
   },
@@ -270,7 +336,7 @@ export const database = {
   updateQuizResult: async (quizId, score, userAnswersMap) => {
     const db = await openDB();
     await db.runAsync('UPDATE quizzes SET score = ? WHERE id = ?;', [score, quizId]);
-    
+
     // userAnswersMap: { questionId: answerText }
     for (const [qId, ans] of Object.entries(userAnswersMap)) {
       await db.runAsync('UPDATE quiz_questions SET user_answer = ? WHERE id = ?;', [ans, qId]);
@@ -337,17 +403,17 @@ export const database = {
 
   getGlobalStats: async (userId) => {
     const db = await openDB();
-    
+
     const materialsResult = await db.getFirstAsync(
       'SELECT COUNT(*) as count FROM materials m JOIN projects p ON m.project_id = p.id WHERE p.user_id = ?;',
       [userId]
     );
-    
+
     const flashcardsResult = await db.getFirstAsync(
       'SELECT COUNT(*) as count FROM flashcards f JOIN projects p ON f.project_id = p.id WHERE p.user_id = ? AND f.is_learned = 1;',
       [userId]
     );
-    
+
     const quizzesResult = await db.getFirstAsync(
       'SELECT COUNT(*) as count FROM quizzes q JOIN projects p ON q.project_id = p.id WHERE p.user_id = ? AND q.score > 0;',
       [userId]

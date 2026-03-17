@@ -12,8 +12,6 @@ const StatsView = () => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.headerTitle}>Twoje Postępy</Text>
-      
       <View style={styles.statsGrid}>
         <StatCard 
           icon={<BookOpen color="#6366f1" size={24} />}
@@ -63,7 +61,6 @@ const StatCard = ({ icon, label, value, color }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  headerTitle: { color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 24 },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

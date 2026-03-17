@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, Pressable, Alert } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
-import { Plus, BookOpen, Menu, User, Settings, BarChart2, Info, LogOut, Mail, ChevronRight, Sparkles, Zap, Brain } from 'lucide-react-native';
+import { Plus, BookOpen, Menu, User, Settings, BarChart2, Info, LogOut, Mail, ChevronRight, ChevronLeft, Sparkles, Zap, Brain } from 'lucide-react-native';
 import StatsView from '../components/StatsView';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
 
 const HomeScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { projects, addProject, user, logout, isPremium, selectedModel, setSelectedModel, setPremium, resetOnboarding } = useStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [statsVisible, setStatsVisible] = useState(false);
@@ -136,22 +137,26 @@ const HomeScreen = ({ navigation }) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Stats Modal */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={statsVisible}
         onRequestClose={() => setStatsVisible(false)}
       >
-        <SafeAreaView className="flex-1 bg-slate-900">
-          <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
-            <TouchableOpacity onPress={() => setStatsVisible(false)} className="p-2">
-              <ChevronRight color="white" size={28} style={{ transform: [{ rotate: '180deg' }] }} />
+        <View className="flex-1 bg-slate-900">
+          <View style={{ paddingTop: insets.top, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56 + insets.top, position: 'relative' }}>
+            <TouchableOpacity 
+              onPress={() => setStatsVisible(false)} 
+              style={{ zIndex: 10, padding: 4 }}
+            >
+              <ChevronLeft color="white" size={32} />
             </TouchableOpacity>
-            <Text className="text-white text-xl font-bold ml-2">Moje Statystyki</Text>
+            <View style={{ position: 'absolute', left: 0, right: 0, top: insets.top, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: 'white', fontSize: 18, fontWeight: '900' }}>Moje Statystyki</Text>
+            </View>
           </View>
           <StatsView />
-        </SafeAreaView>
+        </View>
       </Modal>
       {/* Side Drawer Overlay */}
       {drawerOpen && (
@@ -166,8 +171,9 @@ const HomeScreen = ({ navigation }) => {
         style={{
           transform: [{ translateX: drawerAnim }],
           width: DRAWER_WIDTH,
+          paddingTop: insets.top + 10
         }}
-        className="absolute top-0 bottom-0 left-0 bg-slate-900 border-r border-slate-800 z-50 pt-14"
+        className="absolute top-0 bottom-0 left-0 bg-slate-900 border-r border-slate-800 z-50"
       >
         <ScrollView className="flex-1 px-6">
           {/* User Profile Section */}
@@ -175,7 +181,7 @@ const HomeScreen = ({ navigation }) => {
             <View className="w-16 h-16 bg-indigo-600 rounded-full items-center justify-center mb-3 shadow-lg shadow-indigo-500/40">
               <User color="white" size={32} />
             </View>
-            <Text className="text-white font-bold text-lg">{user?.email?.split('@')[0] || 'Użytkownik'}</Text>
+            <Text className="text-white font-bold text-lg">{user?.name || user?.email?.split('@')[0] || 'Użytkownik'}</Text>
             <Text className="text-slate-500 text-xs">{user?.email}</Text>
           </View>
 
@@ -186,6 +192,14 @@ const HomeScreen = ({ navigation }) => {
             onPress={() => {
               toggleDrawer(false);
               setStatsVisible(true);
+            }} 
+          />
+          <DrawerItem 
+            icon={<Settings size={20} color="#94a3b8" />} 
+            label="Ustawienia Profilu" 
+            onPress={() => {
+              toggleDrawer(false);
+              navigation.navigate('Profile');
             }} 
           />
           <DrawerItem 
@@ -256,7 +270,9 @@ const HomeScreen = ({ navigation }) => {
               </Text>
             </View>
             <Text className="text-slate-400 text-[10px] leading-4">
-              {isPremium ? 'Dziękujemy za wsparcie! Masz dostęp do wszystkich funkcji premium.' : 'Uzyskaj dostęp do nielimitowanych fiszek i zaawansowanych modeli AI.'}
+              {isPremium 
+                ? `Wygasa: ${new Date(user.premium_until).toLocaleDateString('pl-PL')}` 
+                : 'Uzyskaj dostęp do nielimitowanych fiszek i zaawansowanych modeli AI.'}
             </Text>
           </TouchableOpacity>
         </ScrollView>

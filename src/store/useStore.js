@@ -1,8 +1,14 @@
 import { create } from 'zustand';
+import { Alert } from 'react-native';
 import { database } from '../database/db';
 import { authService } from '../services/authService';
 import { aiService } from '../services/aiService';
 import * as SecureStore from 'expo-secure-store';
+
+const checkIsPremium = (premiumUntil) => {
+  if (!premiumUntil) return false;
+  return new Date(premiumUntil) > new Date();
+};
 
 export const useStore = create((set, get) => ({
   user: null,
@@ -31,12 +37,17 @@ export const useStore = create((set, get) => ({
   checkSession: async () => {
     const user = await authService.getSession();
     if (user) {
-      const onboardingKey = `onboarding_${user.id}`;
+      // Refresh user data from DB by ID to get most recent changes (like email change)
+      const refreshedUser = await authService.refreshUser(user.id);
+      const activeUser = refreshedUser || user;
+
+      const onboardingKey = `onboarding_${activeUser.id}`;
       const onboardingDone = await SecureStore.getItemAsync(onboardingKey);
-      
-      set({ 
-        user, 
-        onboardingCompleted: onboardingDone === 'true' 
+
+      set({
+        user: activeUser,
+        isPremium: checkIsPremium(activeUser.premium_until),
+        onboardingCompleted: onboardingDone === 'true'
       });
       get().fetchProjects();
     }
@@ -46,7 +57,11 @@ export const useStore = create((set, get) => ({
     set({ loading: true });
     try {
       const user = await authService.login(email, password);
-      set({ user, loading: false });
+      set({ 
+        user, 
+        isPremium: checkIsPremium(user.premium_until),
+        loading: false 
+      });
       get().fetchProjects();
     } catch (error) {
       set({ loading: false });
@@ -54,15 +69,67 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  register: async (email, password) => {
+  register: async (email, password, name) => {
     set({ loading: true });
     try {
-      const user = await authService.register(email, password);
+      const user = await authService.register(email, password, name);
       // New users start with onboarding requirement
-      set({ user, onboardingCompleted: false, loading: false });
+      set({ 
+        user, 
+        isPremium: false,
+        onboardingCompleted: false, 
+        loading: false 
+      });
       get().fetchProjects();
     } catch (error) {
       set({ loading: false });
+      throw error;
+    }
+  },
+
+  updateProfile: async (data) => {
+    const user = get().user;
+    if (!user) return;
+    set({ loading: true });
+    try {
+      await authService.updateProfile(user.id, data);
+      const refreshedUser = await authService.refreshUser(user.id);
+      set({ user: refreshedUser, loading: false });
+      return true;
+    } catch (error) {
+      set({ loading: false });
+      console.error(error);
+      throw error;
+    }
+  },
+
+  updateEmail: async (email) => {
+    const user = get().user;
+    if (!user) return;
+    set({ loading: true });
+    try {
+      await authService.updateEmail(user.id, email);
+      const refreshedUser = await authService.refreshUser(user.id);
+      set({ user: refreshedUser, loading: false });
+      return true;
+    } catch (error) {
+      set({ loading: false });
+      console.error(error);
+      throw error;
+    }
+  },
+
+  updatePassword: async (currentPassword, newPassword) => {
+    const user = get().user;
+    if (!user) return;
+    set({ loading: true });
+    try {
+      await authService.updatePassword(user.id, currentPassword, newPassword);
+      set({ loading: false });
+      return true;
+    } catch (error) {
+      set({ loading: false });
+      console.error(error);
       throw error;
     }
   },
@@ -75,7 +142,7 @@ export const useStore = create((set, get) => ({
   fetchProjects: async () => {
     const user = get().user;
     if (!user) return;
-    
+
     set({ loading: true });
     try {
       const projects = await database.getProjects(user.id);
@@ -92,12 +159,12 @@ export const useStore = create((set, get) => ({
       const materials = await database.getMaterials(project.id);
       const flashcards = await database.getFlashcards(project.id);
       const quizzes = await database.getQuizzes(project.id);
-      
+
       // Load chat sessions and the most recent one
       const chatSessions = await database.getChatSessions(project.id);
       let currentSession = chatSessions[0] || null;
       let chatMessages = [];
-      
+
       if (currentSession) {
         chatMessages = await database.getChatMessages(currentSession.id);
       }
@@ -187,7 +254,7 @@ export const useStore = create((set, get) => ({
       const allFlashcards = await database.getFlashcards(currentProject.id, true);
       const context = materials.map(m => m.content).join('\n\n');
       const newCards = await aiService.generateFlashcards(context, allFlashcards, selectedModel);
-      
+
       await database.saveFlashcards(currentProject.id, newCards);
       await get().fetchFlashcards(currentProject.id);
       set({ loading: false });
@@ -255,7 +322,7 @@ export const useStore = create((set, get) => ({
       const nextReviewStr = nextReview.toISOString();
 
       await database.updateFlashcardSR(cardId, interval, repetition, easiness_factor, nextReviewStr);
-      
+
       const projectId = get().currentProject?.id;
       if (projectId) {
         await get().fetchFlashcards(projectId);
@@ -282,11 +349,11 @@ export const useStore = create((set, get) => ({
     try {
       const context = materials.map(m => m.content).join('\n\n');
       const questions = await aiService.generateQuiz(context, count, selectedModel, options);
-      
+
       const title = `Quiz: ${new Date().toLocaleDateString('pl-PL')} (${count} pyt.)`;
       const quizId = await database.createQuiz(currentProject.id, title, count);
       await database.addQuizQuestions(quizId, questions);
-      
+
       await get().fetchQuizzes(currentProject.id);
       set({ loading: false });
       return quizId;
@@ -368,7 +435,7 @@ export const useStore = create((set, get) => ({
       const projectId = get().currentProject?.id;
       if (projectId) {
         const sessions = await database.getChatSessions(projectId);
-        set({ 
+        set({
           chatSessions: sessions,
           currentSession: sessions.find(s => s.id === sessionId) || get().currentSession
         });
@@ -380,7 +447,7 @@ export const useStore = create((set, get) => ({
 
   sendChatMessage: async (projectId, content) => {
     const { currentSession, chatMessages, selectedModel } = get();
-    
+
     try {
       // 1. Ensure we have a session
       let activeSession = currentSession;
@@ -394,7 +461,7 @@ export const useStore = create((set, get) => ({
 
       // 2. Save user message
       await database.saveChatMessage(activeSession.id, projectId, 'user', content);
-      
+
       // 3. Update local state
       const userMessage = { role: 'user', content };
       const newMessages = [...chatMessages, userMessage];
@@ -403,27 +470,27 @@ export const useStore = create((set, get) => ({
       // 4. AIService context
       const materials = get().materials;
       const context = materials.map(m => `Plik: ${m.name}\nTreść: ${m.content}`).join('\n\n');
-      const systemMessage = { 
-        role: 'system', 
-        content: `Jesteś asystentem naukowym. Odpowiadaj na pytania na podstawie poniższych materiałów:\n\n${context}` 
+      const systemMessage = {
+        role: 'system',
+        content: `Jesteś asystentem naukowym. Odpowiadaj na pytania na podstawie poniższych materiałów:\n\n${context}`
       };
       const history = chatMessages.map(m => ({ role: m.role, content: m.content }));
 
       // 5. Get AI response
       const response = await aiService.sendMessage([systemMessage, ...history, userMessage], selectedModel);
-      
+
       // 6. Save assistant response
       await database.saveChatMessage(activeSession.id, projectId, 'assistant', response);
-      
+
       // 7. Auto-generate title if it's the first exchange
       if (chatMessages.length === 0) {
         try {
           const autoTitle = await aiService.generateChatTitle(content, response, selectedModel);
           await database.updateChatSessionTitle(activeSession.id, autoTitle);
           const sessions = await database.getChatSessions(projectId);
-          set({ 
-            chatSessions: sessions, 
-            currentSession: sessions.find(s => s.id === activeSession.id) 
+          set({
+            chatSessions: sessions,
+            currentSession: sessions.find(s => s.id === activeSession.id)
           });
         } catch (titleError) {
           console.error('Failed to auto-generate title:', titleError);
@@ -433,7 +500,7 @@ export const useStore = create((set, get) => ({
       // 8. Final sync
       const finalMessages = await database.getChatMessages(activeSession.id);
       set({ chatMessages: finalMessages });
-      
+
       return true;
     } catch (error) {
       console.error(error);
@@ -480,7 +547,7 @@ export const useStore = create((set, get) => ({
 
   setPremium: (status) => set({ isPremium: status }),
   setSelectedModel: (model) => set({ selectedModel: model }),
-  
+
   completeOnboarding: async () => {
     const user = get().user;
     if (user) {
@@ -500,6 +567,31 @@ export const useStore = create((set, get) => ({
       set({ stats });
     } catch (error) {
       console.error('Fetch Stats Error:', error);
+    }
+  },
+
+  grantPremium: async (months) => {
+    const user = get().user;
+    if (!user) return;
+
+    try {
+      const now = new Date();
+      // If user is already premium, extend from their current expiry, otherwise from now
+      const baseDate = checkIsPremium(user.premium_until) ? new Date(user.premium_until) : now;
+      const newExpiry = new Date(baseDate.setMonth(baseDate.getMonth() + months));
+      const expiryStr = newExpiry.toISOString();
+
+      await database.updateUserPremium(user.id, expiryStr);
+      
+      const updatedUser = { ...user, premium_until: expiryStr };
+      await authService.saveSession(updatedUser);
+      
+      set({ 
+        user: updatedUser,
+        isPremium: true 
+      });
+    } catch (error) {
+      console.error('Grant Premium Error:', error);
     }
   }
 }));

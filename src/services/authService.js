@@ -12,7 +12,7 @@ bcrypt.setRandomFallback((len) => {
 const USER_SESSION_KEY = 'user_session';
 
 export const authService = {
-  async register(email, password) {
+  async register(email, password, name) {
     try {
       const existingUser = await database.getUserByEmail(email);
       if (existingUser) {
@@ -22,8 +22,8 @@ export const authService = {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
       
-      const userId = await database.registerUser(email, passwordHash);
-      const user = { id: userId, email };
+      const userId = await database.registerUser(email, passwordHash, name);
+      const user = { id: userId, email, name, premium_until: null };
       
       await this.saveSession(user);
       return user;
@@ -45,7 +45,15 @@ export const authService = {
         throw new Error('Nieprawidłowy e-mail lub hasło.');
       }
 
-      const userData = { id: user.id, email: user.email };
+      const userData = { 
+        id: user.id, 
+        email: user.email, 
+        name: user.name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        premium_until: user.premium_until 
+      };
       await this.saveSession(userData);
       return userData;
     } catch (error) {
@@ -65,5 +73,58 @@ export const authService = {
   async getSession() {
     const session = await SecureStore.getItemAsync(USER_SESSION_KEY);
     return session ? JSON.parse(session) : null;
+  },
+
+  async updateProfile(userId, data) {
+    await database.updateUserProfile(userId, data);
+    const session = await this.getSession();
+    if (session && session.id === userId) {
+      const updatedSession = { ...session, ...data };
+      await this.saveSession(updatedSession);
+      return updatedSession;
+    }
+  },
+
+  async updateEmail(userId, email) {
+    await database.updateUserEmail(userId, email);
+    const session = await this.getSession();
+    if (session && session.id === userId) {
+      const updatedSession = { ...session, email };
+      await this.saveSession(updatedSession);
+      return updatedSession;
+    }
+  },
+
+  async updatePassword(userId, currentPassword, newPassword) {
+    const user = await database.getUserById(userId);
+    if (!user) {
+      throw new Error('Użytkownik nie istnieje.');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
+      throw new Error('Aktualne hasło jest nieprawidłowe.');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+    await database.updateUserPassword(userId, passwordHash);
+  },
+
+  async refreshUser(userId) {
+    const user = await database.getUserById(userId);
+    if (!user) return null;
+    
+    const userData = { 
+      id: user.id, 
+      email: user.email, 
+      name: user.name,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone,
+      premium_until: user.premium_until 
+    };
+    await this.saveSession(userData);
+    return userData;
   }
 };

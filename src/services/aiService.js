@@ -16,21 +16,27 @@ export const aiService = {
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.7,
+          temperature: 0.6,
         }),
       });
 
-      const data = await response.json();
-      console.log('Groq API Response:', JSON.stringify(data));
-
-      if (data.error) {
-        return `Błąd AI: ${data.error.message || 'Nieznany błąd'}`;
+      if (response.status === 429) {
+        throw new Error('Limit zapytań (Rate Limit) osiągnięty. Odczekaj 5-10 sekund i spróbuj ponownie.');
       }
 
-      return data.choices?.[0]?.message?.content || 'Brak odpowiedzi od AI (pusty wynik).';
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error?.message || 'Wystąpił błąd AI.');
+      }
+
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Brak odpowiedzi od AI (pusty wynik).');
+
+      return content;
     } catch (error) {
-      console.error('Groq API Error details:', error);
-      return 'Błąd połączenia z AI. Sprawdź internet.';
+      console.error('Groq API Error:', error.message);
+      throw error;
     }
   },
 
@@ -49,42 +55,29 @@ export const aiService = {
       ? `\n\nOto pytania, które JUŻ MAMY (NIE POWTARZAJ ICH):\n${existingQuests}`
       : '';
 
-    const prompt = `Na podstawie poniższych materiałów wygeneruj 5-10 NOWYCH fiszek naukowych w formacie JSON. 
-Każda fiszka musi mieć pola "question" (pytanie/pojęcie) oraz "answer" (odpowiedź/definicja).${existingPrompt}
-Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego tekstu czy formatowania markdown.\n\nMaterialy:\n${context}`;
+    const prompt = `Na podstawie materiałów wygeneruj 5-8 fiszek JSON (question, answer).${existingPrompt}\nZwróć TYLKO tablicę JSON, bez tekstu.\n\nMaterialy:\n${context}`;
 
     const response = await this.sendMessage([
-      { role: 'system', content: 'Jesteś asystentem tworzącym materiały do nauki w formacie JSON.' },
+      { role: 'system', content: 'Jesteś asystentem tworzącym fiszki JSON.' },
       { role: 'user', content: prompt }
     ], model);
 
     try {
-      // Clean potential markdown code blocks if the AI included them
       const jsonString = response.replace(/```json|```/g, '').trim();
       return JSON.parse(jsonString);
     } catch (error) {
       console.error('Failed to parse flashcards JSON:', error, response);
-      throw new Error('Nie udało się wygenerować fiszek w poprawnym formacie.');
+      // If it's already an error message we threw, pass it on
+      if (response.startsWith('Limit') || response.startsWith('Wystąpił')) throw new Error(response);
+      throw new Error('Nie udało się przetworzyć odpowiedzi AI na format JSON.');
     }
   },
 
   async generateQuiz(context, count = 5, model = CONFIG.MODELS.PRIMARY, options = {}) {
-    const { multichoice = false } = options;
-    
-    let formatPrompt = multichoice 
-      ? `- "correct_answers": tablica poprawnych odpowiedzi (minimum 1, może być więcej; muszą być identyczne jak opcje)`
-      : `- "correct_answer": poprawna odpowiedź (musi być dokładnie taka sama jak jedna z opcji)`;
-
-    const prompt = `Na podstawie poniższych materiałów wygeneruj ${count} pytań testowych wielokrotnego wyboru w formacie JSON. 
-Każde pytanie musi mieć:
-- "question": treść pytania
-- "options": tablica 4 możliwych odpowiedzi (tekst)
-${formatPrompt}
-
-Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego tekstu.\n\nMaterialy:\n${context}`;
+    const prompt = `Na podstawie materiałów wygeneruj ${count} pytań testowych JSON.\nKażde: "question", "options" (4), ${multichoice ? '"correct_answers" (tablica)' : '"correct_answer"'}.\nZwróć TYLKO JSON.\n\nMaterialy:\n${context}`;
 
     const response = await this.sendMessage([
-      { role: 'system', content: 'Jesteś asystentem tworzącym quizy edukacyjne w formacie JSON.' },
+      { role: 'system', content: 'Jesteś asystentem tworzącym quizy JSON.' },
       { role: 'user', content: prompt }
     ], model);
 
@@ -93,7 +86,7 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
       return JSON.parse(jsonString);
     } catch (error) {
       console.error('Failed to parse quiz JSON:', error, response);
-      throw new Error('Nie udało się wygenerować quizu w poprawnym formacie.');
+      throw new Error('Nie udało się przetworzyć quizu na format JSON.');
     }
   },
 
@@ -149,12 +142,12 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
           'Authorization': `Bearer ${CONFIG.GROQ_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [
             {
               role: 'user',
               content: [
-                { type: 'text', text: 'Przepisz cały tekst z tego zdjęcia. Zwróć tylko czysty tekst, bez żadnych komentarzy.' },
+                { type: 'text', text: 'Przepisz cały tekst ze zdjęcia. Tylko czysty tekst.' },
                 {
                   type: 'image_url',
                   image_url: {
@@ -167,12 +160,13 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
         }),
       });
 
+      if (response.status === 429) throw new Error('Limit Rate Limit osiągnięty. Odczekaj chwilę.');
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'Błąd OCR');
       return result.choices[0].message.content;
     } catch (error) {
       console.error('OCR error:', error);
-      throw new Error('Nie udało się wyciągnąć tekstu ze zdjęcia.');
+      throw error;
     }
   },
 
@@ -189,28 +183,30 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
           messages: [
             {
               role: "system",
-              content: "Jesteś ekspertem edukacyjnym. Na podstawie dostarczonych materiałów przygotuj profesjonalny 'Plan Nauki' (Study Guide). Odpowiedź MUSI być w formacie JSON i zawierać:\n1. 'summary': ogólne podsumowanie materiału (max 3-4 zdania).\n2. 'keyTerms': lista 5-8 kluczowych pojęć wraz z krótkimi definicjami.\n3. 'roadmap': lista 3-5 kroków jak najlepiej opanować ten materiał.\n4. 'predictedQuestions': 3-5 pytań, które mogą pojawić się na egzaminie/sprawdzianie."
+              content: "Jesteś ekspertem edukacyjnym. Zwróć odpowiedź w JSON:\n1. 'summary': (3 zdania).\n2. 'keyTerms': lista 5-8 pojęć z def.\n3. 'roadmap': 3-5 kroków.\n4. 'predictedQuestions': 3-5 pytań."
             },
             {
               role: "user",
-              content: `Oto materiały do analizy:\n\n${materialsContext}`
+              content: `Materiały:\n\n${materialsContext}`
             }
           ],
           response_format: { type: "json_object" }
         }),
       });
 
+      if (response.status === 429) throw new Error('Limit Rate Limit osiągnięty. Odczekaj chwilę.');
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message || 'Błąd generowania planu nauki');
 
-      // The original snippet used response.choices[0].message.content, adapting to fetch response structure
-      const jsonString = data.choices?.[0]?.message?.content;
-      if (!jsonString) throw new Error('Brak odpowiedzi od AI (pusty wynik) dla planu nauki.');
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Brak odpowiedzi od AI.');
 
-      return JSON.parse(jsonString);
+      return JSON.parse(content);
     } catch (error) {
-      console.error("Study Guide Generation Error:", error);
-      throw new Error('Nie udało się wygenerować planu nauki w poprawnym formacie.');
+      console.error("Study Guide error:", error);
+      // Simplify error message for the user but keep the original logic if it's our thrown error
+      if (error.message.includes('Limit')) throw error;
+      throw new Error('Nie udało się wygenerować planu nauki w formacie JSON.');
     }
   }
 };

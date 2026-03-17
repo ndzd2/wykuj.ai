@@ -4,13 +4,14 @@ import { useStore } from '../store/useStore';
 import { UserPlus } from 'lucide-react-native';
 
 export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { register, loading } = useStore();
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!name || !email || !password || !confirmPassword) {
       Alert.alert('Błąd', 'Proszę wypełnić wszystkie pola.');
       return;
     }
@@ -23,7 +24,7 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
     try {
-      await register(email, password);
+      await register(email, password, name);
     } catch (error) {
       Alert.alert('Błąd rejestracji', error.message || 'Wystąpił nieoczekiwany błąd.');
     }
@@ -45,6 +46,18 @@ export default function RegisterScreen({ navigation }) {
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Nazwa użytkownika</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="np. jan_kowalski"
+                placeholderTextColor="#64748b"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="none"
+              />
+            </View>
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>E-mail</Text>
               <TextInput

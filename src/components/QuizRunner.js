@@ -26,10 +26,30 @@ const QuizRunner = ({ quizId, onFinish }) => {
 
   const handleSelectAnswer = (answer) => {
     if (isFinished) return;
-    setSelectedAnswers({
-      ...selectedAnswers,
-      [questions[currentIndex].id]: answer
-    });
+    
+    const currentQ = questions[currentIndex];
+    const isMultichoice = currentQ.correct_answer.includes(',');
+    
+    if (isMultichoice) {
+      const currentSelection = selectedAnswers[currentQ.id] ? selectedAnswers[currentQ.id].split(', ') : [];
+      let newSelection;
+      
+      if (currentSelection.includes(answer)) {
+        newSelection = currentSelection.filter(a => a !== answer);
+      } else {
+        newSelection = [...currentSelection, answer];
+      }
+      
+      setSelectedAnswers({
+        ...selectedAnswers,
+        [currentQ.id]: newSelection.sort().join(', ')
+      });
+    } else {
+      setSelectedAnswers({
+        ...selectedAnswers,
+        [questions[currentIndex].id]: answer
+      });
+    }
   };
 
   const handleNext = () => {
@@ -43,8 +63,20 @@ const QuizRunner = ({ quizId, onFinish }) => {
   const finishQuiz = async () => {
     let score = 0;
     questions.forEach(q => {
-      if (selectedAnswers[q.id] === q.correct_answer) {
-        score++;
+      const isMultichoice = q.correct_answer.includes(',');
+      const userAns = selectedAnswers[q.id] || '';
+      
+      if (isMultichoice) {
+        // Sort both to ensure comparison works regardless of selection order
+        const sortedUser = userAns.split(', ').sort().join(', ');
+        const sortedCorrect = q.correct_answer.split(', ').sort().join(', ');
+        if (sortedUser === sortedCorrect && sortedUser !== '') {
+          score++;
+        }
+      } else {
+        if (userAns === q.correct_answer) {
+          score++;
+        }
       }
     });
 
@@ -183,14 +215,24 @@ const QuizRunner = ({ quizId, onFinish }) => {
         <View style={[styles.progressFill, { width: `${((currentIndex + 1) / questions.length) * 100}%` }]} />
       </View>
 
-      <Text style={styles.qCount}>Pytanie {currentIndex + 1} z {questions.length}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.qCount}>Pytanie {currentIndex + 1} z {questions.length}</Text>
+        {questions[currentIndex]?.correct_answer?.includes(',') && (
+          <View style={styles.multiBadge}>
+            <Text style={styles.multiBadgeText}>WIELOKROTNY WYBÓR</Text>
+          </View>
+        )}
+      </View>
       
       <ScrollView style={styles.scrollContent}>
         <Text style={styles.questionText}>{currentQ.question}</Text>
 
         <View style={styles.optionsContainer}>
           {currentQ.options.map((option, idx) => {
-            const isSelected = selectedAnswers[currentQ.id] === option;
+            const isMultichoice = currentQ.correct_answer.includes(',');
+            const currentSelection = selectedAnswers[currentQ.id] ? selectedAnswers[currentQ.id].split(', ') : [];
+            const isSelected = isMultichoice ? currentSelection.includes(option) : selectedAnswers[currentQ.id] === option;
+            
             return (
               <TouchableOpacity
                 key={idx}
@@ -200,8 +242,11 @@ const QuizRunner = ({ quizId, onFinish }) => {
                 ]}
                 onPress={() => handleSelectAnswer(option)}
               >
-                <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                  {isSelected && <View style={styles.radioInner} />}
+                <View style={[
+                  isMultichoice ? styles.checkbox : styles.radio, 
+                  isSelected && (isMultichoice ? styles.checkboxSelected : styles.radioSelected)
+                ]}>
+                  {isSelected && (isMultichoice ? <CheckCircle2 size={14} color="white" /> : <View style={styles.radioInner} />)}
                 </View>
                 <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                   {option}
@@ -246,9 +291,14 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   optionSelected: { borderColor: '#4f46e5', backgroundColor: '#4f46e510' },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#475569', justifyContent: 'center', alignItems: 'center' },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#475569', justifyContent: 'center', alignItems: 'center' },
   radioSelected: { borderColor: '#4f46e5' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#4f46e5' },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#4f46e5' },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#475569', justifyContent: 'center', alignItems: 'center' },
+  checkboxSelected: { borderColor: '#10b981', backgroundColor: '#10b981' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  multiBadge: { backgroundColor: '#10b98120', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#10b98140' },
+  multiBadgeText: { color: '#10b981', fontSize: 10, fontWeight: 'bold' },
   optionText: { color: '#cbd5e1', fontSize: 16 },
   optionTextSelected: { color: 'white', fontWeight: 'bold' },
   nextBtn: {
