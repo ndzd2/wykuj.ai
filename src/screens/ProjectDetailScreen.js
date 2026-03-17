@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
-import { MessageSquare, Paperclip, FileText, GraduationCap } from 'lucide-react-native';
+import { MessageSquare, Paperclip, FileText, GraduationCap, ChevronLeft } from 'lucide-react-native';
 import ChatComponent from '../components/ChatComponent';
 import MaterialsComponent from '../components/MaterialsComponent';
 import NotesComponent from '../components/NotesComponent';
@@ -28,7 +28,43 @@ const ProjectDetailScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#0f172a' }} edges={['bottom', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0f172a' }} edges={['top', 'bottom', 'left', 'right']}>
+      {/* Custom Header */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        height: 56,
+        position: 'relative',
+        marginBottom: 8
+      }}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={{ zIndex: 10, padding: 4 }}
+        >
+          <ChevronLeft color="white" size={32} />
+        </TouchableOpacity>
+
+        <View style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Text style={{ 
+            color: 'white', 
+            fontSize: 18, 
+            fontWeight: '900',
+            letterSpacing: -0.5
+          }}>
+            {project.name}
+          </Text>
+        </View>
+      </View>
+
       <View style={{ 
         flexDirection: 'row', 
         backgroundColor: '#1e293b', 

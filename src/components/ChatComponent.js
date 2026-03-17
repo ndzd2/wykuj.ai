@@ -221,7 +221,6 @@ const ChatComponent = () => {
               <Text className="text-white font-bold text-center text-sm" numberOfLines={1}>
                 {currentSession?.title || 'Nowy czat'}
               </Text>
-              <Text className="text-indigo-400/50 text-[8px] text-center font-bold uppercase tracking-tighter">Kliknij, by zmienić nazwę</Text>
             </TouchableOpacity>
           )}
         </View>

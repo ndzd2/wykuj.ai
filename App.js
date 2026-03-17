@@ -55,18 +55,13 @@ export default function App() {
                 name="Home" 
                 component={HomeScreen} 
                 options={{ 
-                  title: 'Wykuj.AI',
-                  headerRight: () => (
-                    <TouchableOpacity onPress={logout}>
-                      <LogOut size={22} color="#fff" />
-                    </TouchableOpacity>
-                  )
+                  headerShown: false,
                 }}
               />
               <Stack.Screen 
                 name="ProjectDetail" 
                 component={ProjectDetailScreen}
-                options={({ route }) => ({ title: route.params.project.name })}
+                options={{ headerShown: false }}
               />
             </>
           ) : (
