@@ -2,14 +2,16 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Animated, Dimensions, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
-import { Plus, BookOpen, Menu, User, Settings, BarChart2, Info, LogOut, Mail, ChevronRight, Sparkles } from 'lucide-react-native';
+import { Plus, BookOpen, Menu, User, Settings, BarChart2, Info, LogOut, Mail, ChevronRight, Sparkles, Zap, Brain } from 'lucide-react-native';
+import StatsView from '../components/StatsView';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
 
 const HomeScreen = ({ navigation }) => {
-  const { projects, addProject, user, logout } = useStore();
+  const { projects, addProject, user, logout, isPremium, selectedModel, setSelectedModel, setPremium, resetOnboarding } = useStore();
   const [modalVisible, setModalVisible] = useState(false);
+  const [statsVisible, setStatsVisible] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [projectDesc, setProjectDesc] = useState('');
   
@@ -133,6 +135,24 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Stats Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={statsVisible}
+        onRequestClose={() => setStatsVisible(false)}
+      >
+        <SafeAreaView className="flex-1 bg-slate-900">
+          <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+            <TouchableOpacity onPress={() => setStatsVisible(false)} className="p-2">
+              <ChevronRight color="white" size={28} style={{ transform: [{ rotate: '180deg' }] }} />
+            </TouchableOpacity>
+            <Text className="text-white text-xl font-bold ml-2">Moje Statystyki</Text>
+          </View>
+          <StatsView />
+        </SafeAreaView>
+      </Modal>
       {/* Side Drawer Overlay */}
       {drawerOpen && (
         <Pressable 
@@ -163,33 +183,82 @@ const HomeScreen = ({ navigation }) => {
           <DrawerItem 
             icon={<BarChart2 size={20} color="#818cf8" />} 
             label="Statystyki Nauki" 
-            onPress={() => {}} 
-          />
-          <DrawerItem 
-            icon={<Settings size={20} color="#94a3b8" />} 
-            label="Ustawienia Konta" 
-            onPress={() => {}} 
-          />
-          <DrawerItem 
-            icon={<Mail size={20} color="#94a3b8" />} 
-            label="Kontakt i Wsparcie" 
-            onPress={() => {}} 
+            onPress={() => {
+              toggleDrawer(false);
+              setStatsVisible(true);
+            }} 
           />
           <DrawerItem 
             icon={<Info size={20} color="#94a3b8" />} 
-            label="O aplikacji" 
-            onPress={() => {}} 
+            label="Zapoznaj się (Onboarding)" 
+            onPress={() => {
+              toggleDrawer(false);
+              resetOnboarding();
+              // Navigation to onboarding will happen via App.js logic observing onboardingCompleted
+            }} 
           />
+
+          <View className="h-[1px] bg-slate-800 my-4" />
+          
+          <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-4 ml-1">Ustawienia AI</Text>
+          
+          <TouchableOpacity 
+            className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700 mb-2"
+            onPress={() => setSelectedModel('llama-3.1-8b-instant')}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Zap size={18} color={selectedModel === 'llama-3.1-8b-instant' ? '#10b981' : '#64748b'} />
+                <View className="ml-3">
+                  <Text className={`font-bold ${selectedModel === 'llama-3.1-8b-instant' ? 'text-white' : 'text-slate-400'}`}>Szybki (Light)</Text>
+                  <Text className="text-slate-500 text-[10px]">Llama 8B • Błyskawiczna odpowiedź</Text>
+                </View>
+              </View>
+              {selectedModel === 'llama-3.1-8b-instant' && <View className="w-2 h-2 rounded-full bg-emerald-500" />}
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            className={`p-4 rounded-2xl border mb-6 ${isPremium ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-900 border-slate-800 opacity-60'}`}
+            onPress={() => {
+              if (!isPremium) {
+                Alert.alert('Opcja Premium 💎', 'Model Ekspercki (Pro) jest dostępny tylko dla subskrybentów.');
+              } else {
+                setSelectedModel('llama-3.3-70b-versatile');
+              }
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Brain size={18} color={selectedModel === 'llama-3.3-70b-versatile' ? '#818cf8' : '#64748b'} />
+                <View className="ml-3">
+                  <View className="flex-row items-center">
+                    <Text className={`font-bold ${selectedModel === 'llama-3.3-70b-versatile' ? 'text-white' : 'text-slate-400'}`}>Ekspercki (Pro)</Text>
+                    {!isPremium && <Sparkles size={12} color="#fbbf24" style={{ marginLeft: 6 }} />}
+                  </View>
+                  <Text className="text-slate-500 text-[10px]">Llama 70B • Głęboka analiza</Text>
+                </View>
+              </View>
+              {selectedModel === 'llama-3.3-70b-versatile' && <View className="w-2 h-2 rounded-full bg-indigo-500" />}
+            </View>
+          </TouchableOpacity>
           
           <View className="h-[1px] bg-slate-800 my-4" />
           
-          <View className="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/20 mb-6">
+          <TouchableOpacity 
+            className={`${isPremium ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-indigo-500/10 border-indigo-500/20'} p-4 rounded-2xl border mb-6`}
+            onPress={() => setPremium(!isPremium)} // For testing purposes, toggle premium
+          >
             <View className="flex-row items-center mb-2">
-              <Sparkles size={16} color="#818cf8" className="mr-2" />
-              <Text className="text-indigo-400 font-bold text-xs uppercase tracking-wider">Premium Plan</Text>
+              <Sparkles size={16} color={isPremium ? '#10b981' : '#818cf8'} className="mr-2" />
+              <Text className={`${isPremium ? 'text-emerald-400' : 'text-indigo-400'} font-bold text-xs uppercase tracking-wider`}>
+                {isPremium ? 'Status: WYKUJ.AI PRO' : 'Gedejd do Pro'}
+              </Text>
             </View>
-            <Text className="text-slate-400 text-[10px] leading-4">Uzyskaj dostęp do nielimitowanych fiszek i zaawansowanych modeli AI.</Text>
-          </View>
+            <Text className="text-slate-400 text-[10px] leading-4">
+              {isPremium ? 'Dziękujemy za wsparcie! Masz dostęp do wszystkich funkcji premium.' : 'Uzyskaj dostęp do nielimitowanych fiszek i zaawansowanych modeli AI.'}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
 
         {/* Footer / Logout */}

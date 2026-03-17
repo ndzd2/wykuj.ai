@@ -34,16 +34,16 @@ export const aiService = {
     }
   },
 
-  async generateNotes(context, length = 'medium') {
+  async generateNotes(context, length = 'medium', model = CONFIG.MODELS.PRIMARY) {
     const prompt = `Na podstawie poniższych materiałów wygeneruj ${length} notatki w formacie Markdown. Skup się na najważniejszych informacjach.\n\nMaterialy:\n${context}`;
 
     return this.sendMessage([
       { role: 'system', content: 'Jesteś pomocnym asystentem naukowym.' },
       { role: 'user', content: prompt }
-    ]);
+    ], model);
   },
 
-  async generateFlashcards(context, existingCards = []) {
+  async generateFlashcards(context, existingCards = [], model = CONFIG.MODELS.PRIMARY) {
     const existingQuests = existingCards.map(c => `- ${c.question}`).join('\n');
     const existingPrompt = existingCards.length > 0
       ? `\n\nOto pytania, które JUŻ MAMY (NIE POWTARZAJ ICH):\n${existingQuests}`
@@ -56,7 +56,7 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
     const response = await this.sendMessage([
       { role: 'system', content: 'Jesteś asystentem tworzącym materiały do nauki w formacie JSON.' },
       { role: 'user', content: prompt }
-    ]);
+    ], model);
 
     try {
       // Clean potential markdown code blocks if the AI included them
@@ -68,19 +68,25 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
     }
   },
 
-  async generateQuiz(context, count = 5) {
+  async generateQuiz(context, count = 5, model = CONFIG.MODELS.PRIMARY, options = {}) {
+    const { multichoice = false } = options;
+    
+    let formatPrompt = multichoice 
+      ? `- "correct_answers": tablica poprawnych odpowiedzi (minimum 1, może być więcej; muszą być identyczne jak opcje)`
+      : `- "correct_answer": poprawna odpowiedź (musi być dokładnie taka sama jak jedna z opcji)`;
+
     const prompt = `Na podstawie poniższych materiałów wygeneruj ${count} pytań testowych wielokrotnego wyboru w formacie JSON. 
 Każde pytanie musi mieć:
 - "question": treść pytania
 - "options": tablica 4 możliwych odpowiedzi (tekst)
-- "correct_answer": poprawna odpowiedź (musi być dokładnie taka sama jak jedna z opcji)
+${formatPrompt}
 
 Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego tekstu.\n\nMaterialy:\n${context}`;
 
     const response = await this.sendMessage([
       { role: 'system', content: 'Jesteś asystentem tworzącym quizy edukacyjne w formacie JSON.' },
       { role: 'user', content: prompt }
-    ]);
+    ], model);
 
     try {
       const jsonString = response.replace(/```json|```/g, '').trim();
@@ -91,13 +97,13 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
     }
   },
 
-  async generateChatTitle(userMessage, aiResponse) {
+  async generateChatTitle(userMessage, aiResponse, model = CONFIG.MODELS.PRIMARY) {
     const prompt = `Stwórz bardzo krótki, maksymalnie 3-5 słowny tytuł dla rozmowy, na podstawie zapytania użytkownika: "${userMessage}", oraz odpowiedzi od AI: "${aiResponse}"
     
     Zwróć TYLKO tytuł w języku polskim, bez cudzysłowów, bez kropek, nic więcej.`;
 
     try {
-      const response = await this.sendMessage([{ role: 'user', content: prompt }]);
+      const response = await this.sendMessage([{ role: 'user', content: prompt }], model);
       return response.trim().replace(/["']/g, '');
     } catch (error) {
       console.error('Error generating title:', error);
@@ -170,16 +176,16 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
     }
   },
 
-  async generateStudyGuide(materialsContext) {
+  async generateStudyGuide(materialsContext, model = CONFIG.MODELS.PRIMARY) {
     try {
-      const response = await fetch(GROQ_API_URL, { // Using GROQ_API_URL for chat completions
+      const response = await fetch(GROQ_API_URL, { 
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${CONFIG.GROQ_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile", // Model specified in the original snippet
+          model,
           messages: [
             {
               role: "system",

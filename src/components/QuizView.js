@@ -5,22 +5,36 @@ import { FileQuestion, Plus, Trash2, Clock, BarChart3, ChevronRight, Sparkles } 
 import QuizRunner from './QuizRunner';
 
 const QuizView = () => {
-  const { quizzes, loading, generateQuiz, deleteQuiz } = useStore();
+  const { quizzes, loading, generateQuiz, deleteQuiz, isPremium } = useStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedQuizId, setSelectedQuizId] = useState(null);
-  const [lengthModalVisible, setLengthModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [isMultichoice, setIsMultichoice] = useState(false);
 
   const handleCreateQuiz = async (count) => {
-    setLengthModalVisible(false);
+    if (count > 10 && !isPremium) {
+      Alert.alert('Opcja Premium 💎', 'Pełne egzaminy (20+ pytań) są dostępne tylko dla użytkowników Wykuj.AI Pro.');
+      return;
+    }
+
+    setSettingsModalVisible(false);
     setIsGenerating(true);
     try {
-      const quizId = await generateQuiz(count);
+      const quizId = await generateQuiz(count, { multichoice: isMultichoice });
       setSelectedQuizId(quizId);
     } catch (error) {
       Alert.alert('Błąd', 'Nie udało się wygenerować quizu.');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const toggleMultichoice = () => {
+    if (!isPremium) {
+      Alert.alert('Opcja Premium 💎', 'Tryb wielu poprawnych odpowiedzi jest dostępny tylko w wersji Pro.');
+      return;
+    }
+    setIsMultichoice(!isMultichoice);
   };
 
   const handleDelete = (id) => {
@@ -51,7 +65,7 @@ const QuizView = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Twoje Quizy</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => setLengthModalVisible(true)}>
+        <TouchableOpacity style={styles.addButton} onPress={() => setSettingsModalVisible(true)}>
           <Plus color="white" size={20} />
           <Text style={styles.addButtonText}>Nowy Quiz</Text>
         </TouchableOpacity>
@@ -99,15 +113,31 @@ const QuizView = () => {
       />
 
       <Modal
-        visible={lengthModalVisible}
+        visible={settingsModalVisible}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setLengthModalVisible(false)}
+        onRequestClose={() => setSettingsModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Wybierz długość quizu</Text>
+            <Text style={styles.modalTitle}>Konfiguracja Quizu</Text>
+
+            <Text style={styles.sectionLabel}>Tryb odpowiedzi</Text>
+            <TouchableOpacity 
+              style={[styles.premiumToggle, !isPremium && styles.lockedOption]} 
+              onPress={toggleMultichoice}
+            >
+              <View style={styles.toggleTextContainer}>
+                <Text style={styles.optionTitle}>Wiele poprawnych</Text>
+                <Text style={styles.optionSubtitle}>Premium • Kilka dobrych odpowiedzi</Text>
+              </View>
+              <View style={[styles.toggleSwitch, isMultichoice && styles.toggleSwitchOn]}>
+                <View style={[styles.toggleKnob, isMultichoice && styles.toggleKnobOn]} />
+              </View>
+              {!isPremium && <Sparkles size={16} color="#fbbf24" />}
+            </TouchableOpacity>
             
+            <Text style={styles.sectionLabel}>Liczba pytań</Text>
             <LengthOption 
               title="Krótki" 
               subtitle="5 pytań • Szybka powtórka" 
@@ -119,14 +149,15 @@ const QuizView = () => {
               onPress={() => handleCreateQuiz(10)} 
             />
             <LengthOption 
-              title="Długi" 
-              subtitle="20 pytań • Pełny egzamin" 
-              onPress={() => handleCreateQuiz(20)} 
+              title="Ekspercki (Pro)" 
+              subtitle="25 pytań • Pełny egzamin" 
+              isLocked={!isPremium}
+              onPress={() => handleCreateQuiz(25)} 
             />
 
             <TouchableOpacity 
               style={styles.cancelButton} 
-              onPress={() => setLengthModalVisible(false)}
+              onPress={() => setSettingsModalVisible(false)}
             >
               <Text style={styles.cancelButtonText}>Anuluj</Text>
             </TouchableOpacity>
@@ -137,13 +168,20 @@ const QuizView = () => {
   );
 };
 
-const LengthOption = ({ title, subtitle, onPress }) => (
-  <TouchableOpacity style={styles.lengthOption} onPress={onPress}>
-    <View>
+const LengthOption = ({ title, subtitle, onPress, isLocked }) => (
+  <TouchableOpacity 
+    style={[styles.lengthOption, isLocked && styles.lockedOption]} 
+    onPress={onPress}
+  >
+    <View style={{ flex: 1 }}>
       <Text style={styles.optionTitle}>{title}</Text>
       <Text style={styles.optionSubtitle}>{subtitle}</Text>
     </View>
-    <ChevronRight color="#4f46e5" size={20} />
+    {isLocked ? (
+      <Sparkles color="#fbbf24" size={20} />
+    ) : (
+      <ChevronRight color="#4f46e5" size={20} />
+    )}
   </TouchableOpacity>
 );
 
@@ -213,6 +251,35 @@ const styles = StyleSheet.create({
   optionSubtitle: { color: '#94a3b8', fontSize: 12 },
   cancelButton: { marginTop: 10, paddingVertical: 12 },
   cancelButtonText: { color: '#ef4444', textAlign: 'center', fontWeight: 'bold' },
+  sectionLabel: { color: '#64748b', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 12, marginTop: 8, letterSpacing: 1 },
+  premiumToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  toggleTextContainer: { flex: 1 },
+  toggleSwitch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#334155',
+    padding: 2,
+    marginRight: 10,
+  },
+  toggleSwitchOn: { backgroundColor: '#4f46e5' },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'white',
+  },
+  toggleKnobOn: { transform: [{ translateX: 20 }] },
+  lockedOption: { opacity: 0.6, borderColor: '#1e293b' },
 });
 
 export default QuizView;

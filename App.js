@@ -10,6 +10,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ProjectDetailScreen from './src/screens/ProjectDetailScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 
 import { initDatabase } from './src/database/db';
 import { useStore } from './src/store/useStore';
@@ -18,6 +19,7 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   const user = useStore(state => state.user);
+  const onboardingCompleted = useStore(state => state.onboardingCompleted);
   const checkSession = useStore(state => state.checkSession);
   const logout = useStore(state => state.logout);
 
@@ -51,18 +53,26 @@ export default function App() {
         >
           {user ? (
             <>
-              <Stack.Screen 
-                name="Home" 
-                component={HomeScreen} 
-                options={{ 
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen 
-                name="ProjectDetail" 
-                component={ProjectDetailScreen}
-                options={{ headerShown: false }}
-              />
+              {!onboardingCompleted ? (
+                <Stack.Screen 
+                  name="Onboarding" 
+                  component={OnboardingScreen} 
+                  options={{ headerShown: false }}
+                />
+              ) : (
+                <>
+                  <Stack.Screen 
+                    name="Home" 
+                    component={HomeScreen} 
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen 
+                    name="ProjectDetail" 
+                    component={ProjectDetailScreen}
+                    options={{ headerShown: false }}
+                  />
+                </>
+              )}
             </>
           ) : (
             <>

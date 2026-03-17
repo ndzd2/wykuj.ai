@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { database } from '../database/db';
 import { authService } from '../services/authService';
 import { aiService } from '../services/aiService';
+import * as SecureStore from 'expo-secure-store';
 
 export const useStore = create((set, get) => ({
   user: null,
@@ -16,13 +17,27 @@ export const useStore = create((set, get) => ({
   currentSession: null,
   searchQuery: '',
   loading: false,
+  isPremium: false,
+  selectedModel: 'llama-3.1-8b-instant',
+  onboardingCompleted: false,
+  stats: {
+    materialsCount: 0,
+    learnedFlashcards: 0,
+    completedQuizzes: 0
+  },
 
   setUser: (user) => set({ user }),
 
   checkSession: async () => {
     const user = await authService.getSession();
     if (user) {
-      set({ user });
+      const onboardingKey = `onboarding_${user.id}`;
+      const onboardingDone = await SecureStore.getItemAsync(onboardingKey);
+      
+      set({ 
+        user, 
+        onboardingCompleted: onboardingDone === 'true' 
+      });
       get().fetchProjects();
     }
   },
@@ -43,7 +58,8 @@ export const useStore = create((set, get) => ({
     set({ loading: true });
     try {
       const user = await authService.register(email, password);
-      set({ user, loading: false });
+      // New users start with onboarding requirement
+      set({ user, onboardingCompleted: false, loading: false });
       get().fetchProjects();
     } catch (error) {
       set({ loading: false });
@@ -166,10 +182,11 @@ export const useStore = create((set, get) => ({
 
     set({ loading: true });
     try {
+      const { selectedModel } = get();
       // Get ALL flashcards (including learned) to avoid repeats in AI generation
       const allFlashcards = await database.getFlashcards(currentProject.id, true);
       const context = materials.map(m => m.content).join('\n\n');
-      const newCards = await aiService.generateFlashcards(context, allFlashcards);
+      const newCards = await aiService.generateFlashcards(context, allFlashcards, selectedModel);
       
       await database.saveFlashcards(currentProject.id, newCards);
       await get().fetchFlashcards(currentProject.id);
@@ -257,14 +274,14 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  generateQuiz: async (count = 5) => {
-    const { currentProject, materials } = get();
+  generateQuiz: async (count = 5, options = {}) => {
+    const { currentProject, materials, selectedModel } = get();
     if (!currentProject || materials.length === 0) return;
 
     set({ loading: true });
     try {
       const context = materials.map(m => m.content).join('\n\n');
-      const questions = await aiService.generateQuiz(context, count);
+      const questions = await aiService.generateQuiz(context, count, selectedModel, options);
       
       const title = `Quiz: ${new Date().toLocaleDateString('pl-PL')} (${count} pyt.)`;
       const quizId = await database.createQuiz(currentProject.id, title, count);
@@ -362,7 +379,7 @@ export const useStore = create((set, get) => ({
   },
 
   sendChatMessage: async (projectId, content) => {
-    const { currentSession, chatMessages } = get();
+    const { currentSession, chatMessages, selectedModel } = get();
     
     try {
       // 1. Ensure we have a session
@@ -393,7 +410,7 @@ export const useStore = create((set, get) => ({
       const history = chatMessages.map(m => ({ role: m.role, content: m.content }));
 
       // 5. Get AI response
-      const response = await aiService.sendMessage([systemMessage, ...history, userMessage]);
+      const response = await aiService.sendMessage([systemMessage, ...history, userMessage], selectedModel);
       
       // 6. Save assistant response
       await database.saveChatMessage(activeSession.id, projectId, 'assistant', response);
@@ -401,7 +418,7 @@ export const useStore = create((set, get) => ({
       // 7. Auto-generate title if it's the first exchange
       if (chatMessages.length === 0) {
         try {
-          const autoTitle = await aiService.generateChatTitle(content, response);
+          const autoTitle = await aiService.generateChatTitle(content, response, selectedModel);
           await database.updateChatSessionTitle(activeSession.id, autoTitle);
           const sessions = await database.getChatSessions(projectId);
           set({ 
@@ -445,19 +462,44 @@ export const useStore = create((set, get) => ({
   },
 
   generateStudyGuide: async () => {
-    const { currentProject, materials } = get();
+    const { currentProject, materials, selectedModel } = get();
     if (!currentProject || materials.length === 0) return null;
 
     set({ loading: true });
     try {
       const context = materials.map(m => `Plik: ${m.name}\nTreść: ${m.content}`).join('\n\n');
-      const studyGuide = await aiService.generateStudyGuide(context);
+      const studyGuide = await aiService.generateStudyGuide(context, selectedModel);
       set({ loading: false });
       return studyGuide;
     } catch (error) {
       console.error(error);
       set({ loading: false });
       throw error;
+    }
+  },
+
+  setPremium: (status) => set({ isPremium: status }),
+  setSelectedModel: (model) => set({ selectedModel: model }),
+  
+  completeOnboarding: async () => {
+    const user = get().user;
+    if (user) {
+      const onboardingKey = `onboarding_${user.id}`;
+      await SecureStore.setItemAsync(onboardingKey, 'true');
+      set({ onboardingCompleted: true });
+    }
+  },
+
+  resetOnboarding: () => set({ onboardingCompleted: false }),
+
+  fetchStats: async () => {
+    const user = get().user;
+    if (!user) return;
+    try {
+      const stats = await database.getGlobalStats(user.id);
+      set({ stats });
+    } catch (error) {
+      console.error('Fetch Stats Error:', error);
     }
   }
 }));

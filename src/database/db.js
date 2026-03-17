@@ -333,5 +333,30 @@ export const database = {
       'SELECT * FROM materials WHERE project_id = ? AND (name LIKE ? OR content LIKE ?) ORDER BY id DESC;',
       [projectId, `%${query}%`, `%${query}%`]
     );
+  },
+
+  getGlobalStats: async (userId) => {
+    const db = await openDB();
+    
+    const materialsResult = await db.getFirstAsync(
+      'SELECT COUNT(*) as count FROM materials m JOIN projects p ON m.project_id = p.id WHERE p.user_id = ?;',
+      [userId]
+    );
+    
+    const flashcardsResult = await db.getFirstAsync(
+      'SELECT COUNT(*) as count FROM flashcards f JOIN projects p ON f.project_id = p.id WHERE p.user_id = ? AND f.is_learned = 1;',
+      [userId]
+    );
+    
+    const quizzesResult = await db.getFirstAsync(
+      'SELECT COUNT(*) as count FROM quizzes q JOIN projects p ON q.project_id = p.id WHERE p.user_id = ? AND q.score > 0;',
+      [userId]
+    );
+
+    return {
+      materialsCount: materialsResult?.count || 0,
+      learnedFlashcards: flashcardsResult?.count || 0,
+      completedQuizzes: quizzesResult?.count || 0
+    };
   }
 };
