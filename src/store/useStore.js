@@ -1,16 +1,60 @@
 import { create } from 'zustand';
 import { database } from '../database/db';
+import { authService } from '../services/authService';
 
 export const useStore = create((set, get) => ({
+  user: null,
   projects: [],
   currentProject: null,
   materials: [],
   loading: false,
 
-  fetchProjects: async () => {
+  setUser: (user) => set({ user }),
+
+  checkSession: async () => {
+    const user = await authService.getSession();
+    if (user) {
+      set({ user });
+      get().fetchProjects();
+    }
+  },
+
+  login: async (email, password) => {
     set({ loading: true });
     try {
-      const projects = await database.getProjects();
+      const user = await authService.login(email, password);
+      set({ user, loading: false });
+      get().fetchProjects();
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
+  },
+
+  register: async (email, password) => {
+    set({ loading: true });
+    try {
+      const user = await authService.register(email, password);
+      set({ user, loading: false });
+      get().fetchProjects();
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
+  },
+
+  logout: async () => {
+    await authService.logout();
+    set({ user: null, projects: [], currentProject: null, materials: [] });
+  },
+
+  fetchProjects: async () => {
+    const user = get().user;
+    if (!user) return;
+    
+    set({ loading: true });
+    try {
+      const projects = await database.getProjects(user.id);
       set({ projects, loading: false });
     } catch (error) {
       console.error(error);
@@ -30,8 +74,11 @@ export const useStore = create((set, get) => ({
   },
 
   addProject: async (name, description) => {
+    const user = get().user;
+    if (!user) return;
+
     try {
-      await database.createProject(name, description);
+      await database.createProject(user.id, name, description);
       get().fetchProjects();
     } catch (error) {
       console.error(error);
@@ -45,8 +92,10 @@ export const useStore = create((set, get) => ({
         const materials = await database.getMaterials(projectId);
         set({ materials });
       }
+      return true;
     } catch (error) {
       console.error(error);
+      throw error;
     }
   },
 
@@ -58,8 +107,10 @@ export const useStore = create((set, get) => ({
         const materials = await database.getMaterials(projectId);
         set({ materials });
       }
+      return true;
     } catch (error) {
       console.error(error);
+      throw error;
     }
   },
 
@@ -71,8 +122,10 @@ export const useStore = create((set, get) => ({
         const materials = await database.getMaterials(projectId);
         set({ materials });
       }
+      return true;
     } catch (error) {
       console.error(error);
+      throw error;
     }
   }
 }));

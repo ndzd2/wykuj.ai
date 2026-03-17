@@ -7,23 +7,68 @@ const openDB = async () => {
 
 export const initDatabase = async () => {
   const db = await openDB();
+  
+  // Basic migrations/initialization
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
-    CREATE TABLE IF NOT EXISTS materials (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER, name TEXT, content TEXT, type TEXT, FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, 
+      name TEXT, 
+      description TEXT, 
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS materials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, 
+      project_id INTEGER, 
+      name TEXT, 
+      content TEXT, 
+      type TEXT, 
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
   `);
+
+  // Migration: Add user_id to projects if it doesn't exist
+  const tableInfo = await db.getAllAsync("PRAGMA table_info(projects);");
+  const hasUserId = tableInfo.some(column => column.name === 'user_id');
+  if (!hasUserId) {
+    try {
+      await db.execAsync("ALTER TABLE projects ADD COLUMN user_id INTEGER;");
+      console.log('Added user_id column to projects table');
+    } catch (error) {
+      console.error('Migration failed:', error);
+    }
+  }
 };
 
 export const database = {
-  createProject: async (name, description = '') => {
+  // --- Auth Methods ---
+  registerUser: async (email, passwordHash) => {
     const db = await openDB();
-    const result = await db.runAsync('INSERT INTO projects (name, description) VALUES (?, ?);', [name, description]);
+    const result = await db.runAsync('INSERT INTO users (email, password_hash) VALUES (?, ?);', [email, passwordHash]);
     return result.lastInsertRowId;
   },
 
-  getProjects: async () => {
+  getUserByEmail: async (email) => {
     const db = await openDB();
-    return await db.getAllAsync('SELECT * FROM projects ORDER BY created_at DESC;');
+    return await db.getFirstAsync('SELECT * FROM users WHERE email = ?;', [email]);
+  },
+
+  // --- Scoped Project Methods ---
+  createProject: async (userId, name, description = '') => {
+    const db = await openDB();
+    const result = await db.runAsync('INSERT INTO projects (user_id, name, description) VALUES (?, ?, ?);', [userId, name, description]);
+    return result.lastInsertRowId;
+  },
+
+  getProjects: async (userId) => {
+    const db = await openDB();
+    return await db.getAllAsync('SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC;', [userId]);
   },
 
   addMaterial: async (projectId, name, content, type = 'text') => {

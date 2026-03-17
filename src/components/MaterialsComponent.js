@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 import { FileText, Plus, X, UploadCloud, Info, Trash2, Edit3 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { extractText } from 'expo-pdf-text-extract';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as mammoth from 'mammoth/mammoth.browser';
 import * as XLSX from 'xlsx';
 import { Buffer } from 'buffer';
@@ -100,14 +100,36 @@ const MaterialsComponent = () => {
     }
   };
 
-  const handleSaveMaterial = () => {
-    if (fileName.trim() && fileContent.trim()) {
+  const handleSaveMaterial = async () => {
+    if (isExtracting) {
+      Alert.alert('Proszę czekać', 'Trwa wyciąganie tekstu z pliku...');
+      return;
+    }
+
+    if (!currentProject?.id) {
+      Alert.alert('Błąd', 'Brak aktywnego projektu. Spróbuj wejść do projektu ponownie.');
+      return;
+    }
+
+    if (!fileName.trim()) {
+      Alert.alert('Błąd', 'Proszę podać nazwę materiału.');
+      return;
+    }
+
+    if (!fileContent.trim()) {
+      Alert.alert('Błąd', 'Materiały muszą zawierać treść. Wybierz plik lub wpisz tekst ręcznie.');
+      return;
+    }
+
+    try {
       if (editingId) {
-        updateMaterial(editingId, fileName, fileContent);
+        await updateMaterial(editingId, fileName, fileContent);
       } else {
-        addMaterial(currentProject.id, fileName, fileContent, 'text');
+        await addMaterial(currentProject.id, fileName, fileContent, 'text');
       }
       closeModal();
+    } catch (error) {
+      Alert.alert('Błąd', 'Nie udało się zapisać materiału.');
     }
   };
 
