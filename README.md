@@ -5,7 +5,9 @@ wykuj.ai to zaawansowana platforma edukacyjna oparta na sztucznej inteligencji, 
 ## Kluczowe Funkcjonalności
 
 ### Zarządzanie Projektami
-Aplikacja pozwala na organizację nauki w ramach oddzielnych projektów. Każdy projekt posiada własną bazę materiałów, notatek oraz historię interakcji z AI, co zapewnia strukturalne podejście do wielu dziedzin nauki jednocześnie.
+Aplikacja pozwala na organizację nauki w ramach oddzielnych projektów. Każdy projekt posiada własną bazę materiałów, notatek oraz historię interakcji z AI.
+- **Dedykowane sesje**: Możliwość prowadzenia wielu niezależnych rozmów z AI wewnątrz jednego projektu.
+- **Trwała historia**: Wszystkie rozmowy są automatycznie zapisywane i dostępne do wznowienia w dowolnym momencie.
 
 ### Bezpieczeństwo i Konta Użytkowników
 Aplikacja posiada wbudowany system lokalnej autoryzacji (rejestracja i logowanie). Wszystkie dane (projekty, materiały, historia) są przypisane do konkretnego konta użytkownika, co pozwala na współdzielenie urządzenia przez wiele osób z zachowaniem pełnej prywatności danych.
@@ -20,6 +22,10 @@ Obsługiwane formaty:
 - Pliki tekstowe (TXT)
 - Formaty OpenDocument (ODT, ODS, ODP)
 
+### Przetwarzanie Multimedialne (Głosowe i OCR)
+- **Notatki Głosowe**: Szybkie dodawanie treści za pomocą mowy dzięki integracji z `expo-audio` oraz automatycznej transkrypcji przez model Groq Whisper.
+- **Ekstrakcja Tekstu ze Zdjęć (OCR)**: Przetwarzanie obrazów z aparatu lub galerii przy użyciu zaawansowanych modeli wizyjnych (Llama Vision), co pozwala na szybką cyfryzację notatek ręcznych.
+
 ### Centrum Nauki
 Aplikacja oferuje zaawansowany system nauki oparty na materiałach generowanych przez sztuczną inteligencję.
 - **Fiszki AI**: Automatyczne tworzenie zestawów pytań/odpowiedzi z inteligentnym unikaniem powtórek i statusem opanowania ("umiane").
@@ -32,7 +38,10 @@ wykuj.ai pozwala na łatwe dzielenie się wiedzą poza aplikacją:
 - **Eksport Markdown**: Szybkie udostępnianie treści quizów i notatek w formacie tekstowym.
 
 ### Synteza i Interakcja AI
-Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe odpowiedzi. AI analizuje wgrane materiały, aby odpowiadać na pytania, generować streszczenia lub wyjaśniać złożone zagadnienia w oparciu o kontekst danego projektu.
+Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe odpowiedzi. 
+- **Kontekst Projektu**: AI analizuje wgrane materiały, aby odpowiadać na pytania lub generować streszczenia.
+- **Inteligentne Tytuły (Smart Titles)**: AI automatycznie nadaje rozmowom trafne tytuły na podstawie ich treści.
+- **Manualna Edycja**: Możliwość ręcznej zmiany nazwy sesji czatu przez użytkownika.
 
 ## Architektura Techniczna
 
@@ -48,9 +57,10 @@ Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe od
 - **Zarządzanie stanem**: Zustand dla wydajnej i reaktywnej obsługi logiki aplikacji.
 
 ### Usługi i Przetwarzanie
-- Integracja AI: API Groq wykorzystujące modele z rodziny Llama 3.
-- Przetwarzanie dokumentów: Lokalne parsowanie binarne w celu zapewnienia maksymalnej prywatności i wydajności.
-- Generowanie raportów: `expo-print` oraz `expo-sharing` do tworzenia i udostępniania plików PDF.
+- **Integracja AI**: API Groq wykorzystujące modele z rodziny Llama 3 oraz Llama Vision.
+- **Przetwarzanie dokumentów**: Lokalne parsowanie binarne w celu zapewnienia maksymalnej prywatności i wydajności.
+- **Audio i Transkrypcja**: Wykorzystanie modelu Groq Whisper-large-v3 do błyskawicznej zamiany mowy na tekst.
+- **Generowanie raportów**: `expo-print` oraz `expo-sharing` do tworzenia i udostępniania plików PDF.
 
 ## Instalacja i Konfiguracja
 
