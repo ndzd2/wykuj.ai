@@ -65,56 +65,43 @@ const ChatComponent = () => {
   };
 
   const renderMessage = ({ item }) => (
-    <View className={`mb-6 flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <View className={`mb-4 flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
       <View 
-        className={`max-w-[88%] p-4 rounded-3xl shadow-lg ${
+        className={`max-w-[82%] px-4 py-3 rounded-2xl ${
           item.role === 'user' 
             ? 'bg-indigo-600 rounded-tr-none' 
-            : 'bg-slate-800 rounded-tl-none border border-slate-700/60'
+            : 'bg-slate-800 rounded-tl-none border border-slate-700/40'
         }`}
         style={item.role === 'user' ? {
           shadowColor: '#6366f1',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.35,
-          shadowRadius: 10,
-          elevation: 8
-        } : {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
+          shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.2,
-          shadowRadius: 6,
-          elevation: 4
-        }}
+          shadowRadius: 4,
+          elevation: 3
+        } : {}}
       >
-        <View className="flex-row justify-between items-center mb-2.5">
+        <View className="flex-row justify-between items-center mb-1">
           <View className="flex-row items-center">
-            <View className={`p-1.5 rounded-lg mr-2 ${item.role === 'user' ? 'bg-indigo-400/30' : 'bg-indigo-500/20'}`}>
-              {item.role === 'user' ? (
-                <User size={12} color="#fff" />
-              ) : (
-                <Bot size={12} color="#818cf8" />
-              )}
-            </View>
-            <Text className={`text-[10px] uppercase font-black tracking-[2px] ${item.role === 'user' ? 'text-indigo-100' : 'text-indigo-400'}`}>
-              {item.role === 'user' ? 'Ty' : 'AI Wykuj'}
+            <Text className={`text-[10px] uppercase font-black tracking-widest ${item.role === 'user' ? 'text-indigo-200' : 'text-indigo-400'}`}>
+              {item.role === 'user' ? 'TY' : 'AI WYKUJ'}
             </Text>
           </View>
           
           {item.role === 'assistant' && (
             <TouchableOpacity 
               onPress={() => handleSpeak(item.content, item.id)}
-              className={`p-1.5 rounded-full ${speakingId === item.id ? 'bg-indigo-500/20' : ''}`}
+              className="ml-2"
             >
               {speakingId === item.id ? (
-                <Square size={14} color="#818cf8" fill="#818cf8" />
+                <Square size={12} color="#818cf8" fill="#818cf8" />
               ) : (
-                <Volume2 size={14} color="#64748b" />
+                <Volume2 size={12} color="#64748b" />
               )}
             </TouchableOpacity>
           )}
         </View>
         
-        <Text className="text-white text-[16px] leading-[24px] font-medium selection:bg-indigo-400/40">
+        <Text className="text-white text-[15px] leading-6 font-medium">
           {item.content}
         </Text>
       </View>
