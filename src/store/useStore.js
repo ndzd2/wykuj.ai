@@ -206,6 +206,48 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  updateFlashcardSR: async (cardId, quality) => {
+    // quality: 3 (Hard), 4 (Good), 5 (Easy)
+    try {
+      const card = get().flashcards.find(f => f.id === cardId);
+      if (!card) return;
+
+      let { interval, repetition, easiness_factor } = card;
+      let q = quality;
+
+      // SM-2 Algorithm
+      if (q >= 3) {
+        if (repetition === 0) {
+          interval = 1;
+        } else if (repetition === 1) {
+          interval = 6;
+        } else {
+          interval = Math.round(interval * easiness_factor);
+        }
+        repetition += 1;
+      } else {
+        repetition = 0;
+        interval = 1;
+      }
+
+      easiness_factor = easiness_factor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+      if (easiness_factor < 1.3) easiness_factor = 1.3;
+
+      const nextReview = new Date();
+      nextReview.setDate(nextReview.getDate() + interval);
+      const nextReviewStr = nextReview.toISOString();
+
+      await database.updateFlashcardSR(cardId, interval, repetition, easiness_factor, nextReviewStr);
+      
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        await get().fetchFlashcards(projectId);
+      }
+    } catch (error) {
+      console.error('SR Update Error:', error);
+    }
+  },
+
   fetchQuizzes: async (projectId) => {
     try {
       const quizzes = await database.getQuizzes(projectId);

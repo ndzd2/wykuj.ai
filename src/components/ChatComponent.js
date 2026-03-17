@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
-import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2, Search } from 'lucide-react-native';
+import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2, Search, Volume2, Square } from 'lucide-react-native';
+import * as Speech from 'expo-speech';
 import { aiService } from '../services/aiService';
 import { useStore } from '../store/useStore';
 
@@ -12,6 +13,7 @@ const ChatComponent = () => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [historySearch, setHistorySearch] = useState('');
+  const [speakingId, setSpeakingId] = useState(null);
   const flatListRef = useRef();
 
   // Sync edited title when session changes
@@ -34,6 +36,21 @@ const ChatComponent = () => {
       setIsTyping(false);
     }
   };
+  
+  const handleSpeak = (text, id) => {
+    if (speakingId === id) {
+      Speech.stop();
+      setSpeakingId(null);
+    } else {
+      Speech.stop();
+      setSpeakingId(id);
+      Speech.speak(text, {
+        language: 'pl-PL',
+        onDone: () => setSpeakingId(null),
+        onError: () => setSpeakingId(null),
+      });
+    }
+  };
 
   const handleSaveTitle = async () => {
     if (currentSession && editedTitle.trim() && editedTitle !== currentSession.title) {
@@ -48,34 +65,56 @@ const ChatComponent = () => {
   };
 
   const renderMessage = ({ item }) => (
-    <View className={`mb-5 flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <View className={`mb-6 flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
       <View 
-        className={`max-w-[85%] p-4 rounded-2xl shadow-sm ${
+        className={`max-w-[88%] p-4 rounded-3xl shadow-lg ${
           item.role === 'user' 
             ? 'bg-indigo-600 rounded-tr-none' 
-            : 'bg-slate-800 rounded-tl-none border border-slate-700/50'
+            : 'bg-slate-800 rounded-tl-none border border-slate-700/60'
         }`}
         style={item.role === 'user' ? {
           shadowColor: '#6366f1',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.35,
+          shadowRadius: 10,
+          elevation: 8
+        } : {
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 5
-        } : {}}
+          shadowOpacity: 0.2,
+          shadowRadius: 6,
+          elevation: 4
+        }}
       >
-        <View className="flex-row items-center mb-2">
-          <View className={`p-1 rounded-full mr-2 ${item.role === 'user' ? 'bg-indigo-400/20' : 'bg-indigo-500/20'}`}>
-            {item.role === 'user' ? (
-              <User size={10} color="#c7d2fe" />
-            ) : (
-              <Bot size={10} color="#818cf8" />
-            )}
+        <View className="flex-row justify-between items-center mb-2.5">
+          <View className="flex-row items-center">
+            <View className={`p-1.5 rounded-lg mr-2 ${item.role === 'user' ? 'bg-indigo-400/30' : 'bg-indigo-500/20'}`}>
+              {item.role === 'user' ? (
+                <User size={12} color="#fff" />
+              ) : (
+                <Bot size={12} color="#818cf8" />
+              )}
+            </View>
+            <Text className={`text-[10px] uppercase font-black tracking-[2px] ${item.role === 'user' ? 'text-indigo-100' : 'text-indigo-400'}`}>
+              {item.role === 'user' ? 'Ty' : 'AI Wykuj'}
+            </Text>
           </View>
-          <Text className={`text-[9px] uppercase font-bold tracking-[1.5px] ${item.role === 'user' ? 'text-indigo-200' : 'text-indigo-400'}`}>
-            {item.role === 'user' ? 'Ty' : 'AI Asystent'}
-          </Text>
+          
+          {item.role === 'assistant' && (
+            <TouchableOpacity 
+              onPress={() => handleSpeak(item.content, item.id)}
+              className={`p-1.5 rounded-full ${speakingId === item.id ? 'bg-indigo-500/20' : ''}`}
+            >
+              {speakingId === item.id ? (
+                <Square size={14} color="#818cf8" fill="#818cf8" />
+              ) : (
+                <Volume2 size={14} color="#64748b" />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
-        <Text className="text-white text-[15px] leading-6 font-medium selection:bg-indigo-500/30">
+        
+        <Text className="text-white text-[16px] leading-[24px] font-medium selection:bg-indigo-400/40">
           {item.content}
         </Text>
       </View>

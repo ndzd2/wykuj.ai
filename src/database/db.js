@@ -38,6 +38,10 @@ export const initDatabase = async () => {
       question TEXT NOT NULL,
       answer TEXT NOT NULL,
       is_learned INTEGER DEFAULT 0,
+      interval INTEGER DEFAULT 0,
+      repetition INTEGER DEFAULT 0,
+      easiness_factor REAL DEFAULT 2.5,
+      next_review DATETIME DEFAULT '2024-01-01 00:00:00',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
@@ -97,7 +101,30 @@ export const initDatabase = async () => {
       await db.execAsync("ALTER TABLE flashcards ADD COLUMN is_learned INTEGER DEFAULT 0;");
       console.log('Added is_learned column to flashcards table');
     } catch (error) {
-      console.error('Migration failed (flashcards):', error);
+      console.error('Migration failed (is_learned):', error);
+    }
+  }
+
+  const hasSRFields = flashcardInfo.some(column => column.name === 'interval');
+  if (!hasSRFields) {
+    try {
+      await db.execAsync("ALTER TABLE flashcards ADD COLUMN interval INTEGER DEFAULT 0;");
+      await db.execAsync("ALTER TABLE flashcards ADD COLUMN repetition INTEGER DEFAULT 0;");
+      await db.execAsync("ALTER TABLE flashcards ADD COLUMN easiness_factor REAL DEFAULT 2.5;");
+      console.log('Added initial Spaced Repetition columns to flashcards table');
+    } catch (error) {
+      console.error('Migration failed (initial SR fields):', error);
+    }
+  }
+
+  // Extra check for next_review specifically as it failed last time due to default value issue
+  const hasNextReview = flashcardInfo.some(column => column.name === 'next_review');
+  if (!hasNextReview) {
+    try {
+      await db.execAsync("ALTER TABLE flashcards ADD COLUMN next_review DATETIME DEFAULT '2024-01-01 00:00:00';");
+      console.log('Added next_review column to flashcards table');
+    } catch (error) {
+      console.error('Migration failed (next_review):', error);
     }
   }
 
@@ -163,7 +190,10 @@ export const database = {
   // --- Flashcards Methods ---
   addFlashcard: async (projectId, question, answer) => {
     const db = await openDB();
-    const result = await db.runAsync('INSERT INTO flashcards (project_id, question, answer) VALUES (?, ?, ?);', [projectId, question, answer]);
+    const result = await db.runAsync(
+      'INSERT INTO flashcards (project_id, question, answer, next_review) VALUES (?, ?, ?, CURRENT_TIMESTAMP);', 
+      [projectId, question, answer]
+    );
     return result.lastInsertRowId;
   },
 
@@ -180,6 +210,14 @@ export const database = {
     await db.runAsync('UPDATE flashcards SET is_learned = 1 WHERE id = ?;', [id]);
   },
 
+  updateFlashcardSR: async (id, interval, repetition, easinessFactor, nextReview) => {
+    const db = await openDB();
+    await db.runAsync(
+      'UPDATE flashcards SET interval = ?, repetition = ?, easiness_factor = ?, next_review = ?, is_learned = 0 WHERE id = ?;',
+      [interval, repetition, easinessFactor, nextReview, id]
+    );
+  },
+
   deleteFlashcard: async (id) => {
     const db = await openDB();
     await db.runAsync('DELETE FROM flashcards WHERE id = ?;', [id]);
@@ -188,7 +226,10 @@ export const database = {
   saveFlashcards: async (projectId, flashcards) => {
     const db = await openDB();
     for (const card of flashcards) {
-      await db.runAsync('INSERT INTO flashcards (project_id, question, answer) VALUES (?, ?, ?);', [projectId, card.question, card.answer]);
+      await db.runAsync(
+        'INSERT INTO flashcards (project_id, question, answer, next_review) VALUES (?, ?, ?, CURRENT_TIMESTAMP);', 
+        [projectId, card.question, card.answer]
+      );
     }
   },
 

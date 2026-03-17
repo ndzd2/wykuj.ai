@@ -148,6 +148,7 @@ const FlashcardsView = () => {
           <ChevronRight color={currentIndex === flashcards.length - 1 ? '#475569' : 'white'} size={24} />
         </TouchableOpacity>
       </View>
+
     </View>
   );
 };
