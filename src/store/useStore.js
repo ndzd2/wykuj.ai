@@ -9,6 +9,8 @@ export const useStore = create((set, get) => ({
   currentProject: null,
   materials: [],
   flashcards: [],
+  quizzes: [],
+  currentQuizQuestions: [],
   loading: false,
 
   setUser: (user) => set({ user }),
@@ -69,7 +71,8 @@ export const useStore = create((set, get) => ({
     try {
       const materials = await database.getMaterials(project.id);
       const flashcards = await database.getFlashcards(project.id);
-      set({ materials, flashcards, loading: false });
+      const quizzes = await database.getQuizzes(project.id);
+      set({ materials, flashcards, quizzes, loading: false });
     } catch (error) {
       console.error(error);
       set({ loading: false });
@@ -181,6 +184,71 @@ export const useStore = create((set, get) => ({
       const projectId = get().currentProject?.id;
       if (projectId) {
         await get().fetchFlashcards(projectId);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  fetchQuizzes: async (projectId) => {
+    try {
+      const quizzes = await database.getQuizzes(projectId);
+      set({ quizzes });
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  generateQuiz: async (count = 5) => {
+    const { currentProject, materials } = get();
+    if (!currentProject || materials.length === 0) return;
+
+    set({ loading: true });
+    try {
+      const context = materials.map(m => m.content).join('\n\n');
+      const questions = await aiService.generateQuiz(context, count);
+      
+      const title = `Quiz: ${new Date().toLocaleDateString('pl-PL')} (${count} pyt.)`;
+      const quizId = await database.createQuiz(currentProject.id, title, count);
+      await database.addQuizQuestions(quizId, questions);
+      
+      await get().fetchQuizzes(currentProject.id);
+      set({ loading: false });
+      return quizId;
+    } catch (error) {
+      console.error(error);
+      set({ loading: false });
+      throw error;
+    }
+  },
+
+  getQuizQuestions: async (quizId) => {
+    try {
+      return await database.getQuizQuestions(quizId);
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  },
+
+  saveQuizResult: async (quizId, score, answers) => {
+    try {
+      await database.updateQuizResult(quizId, score, answers);
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        await get().fetchQuizzes(projectId);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  deleteQuiz: async (id) => {
+    try {
+      await database.deleteQuiz(id);
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        await get().fetchQuizzes(projectId);
       }
     } catch (error) {
       console.error(error);

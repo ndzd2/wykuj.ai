@@ -20,11 +20,16 @@ Obsługiwane formaty:
 - Pliki tekstowe (TXT)
 - Formaty OpenDocument (ODT, ODS, ODP)
 
-### Moduł Nauki i Fiszek AI
-Aplikacja oferuje zaawansowany system nauki oparty na fiszkach generowanych automatycznie przez AI.
-- **Generowanie AI**: Tworzenie zestawów pytań i odpowiedzi na podstawie wgranych materiałów.
-- **Inteligentna Powtarzalność**: AI unika generowania tych samych pytań, biorąc pod uwagę fiszki, które użytkownik już posiada.
-- **Status Opanowania**: Możliwość oznaczania fiszek jako "umiane", co pozwala skupić się na nowym materiale przy zachowaniu kontekstu dla asystenta AI.
+### Centrum Nauki
+Aplikacja oferuje zaawansowany system nauki oparty na materiałach generowanych przez sztuczną inteligencję.
+- **Fiszki AI**: Automatyczne tworzenie zestawów pytań/odpowiedzi z inteligentnym unikaniem powtórek i statusem opanowania ("umiane").
+- **Quizy AI**: Interaktywne testy wielokrotnego wyboru z możliwością wyboru długości (Krótki - 5, Średni - 10, Długi - 20 pytań).
+- **Historia Wyników**: Każdy wygenerowany quiz jest zapisywany, co pozwala na śledzenie postępów i przeglądanie błędnych odpowiedzi.
+
+### Eksport i Udostępnianie
+wykuj.ai pozwala na łatwe dzielenie się wiedzą poza aplikacją:
+- **Eksport do PDF**: Generowanie profesjonalnych, gotowych do wydruku dokumentów z quizami i kluczami odpowiedzi.
+- **Eksport Markdown**: Szybkie udostępnianie treści quizów i notatek w formacie tekstowym.
 
 ### Synteza i Interakcja AI
 Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe odpowiedzi. AI analizuje wgrane materiały, aby odpowiadać na pytania, generować streszczenia lub wyjaśniać złożone zagadnienia w oparciu o kontekst danego projektu.
@@ -45,6 +50,7 @@ Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe od
 ### Usługi i Przetwarzanie
 - Integracja AI: API Groq wykorzystujące modele z rodziny Llama 3.
 - Przetwarzanie dokumentów: Lokalne parsowanie binarne w celu zapewnienia maksymalnej prywatności i wydajności.
+- Generowanie raportów: `expo-print` oraz `expo-sharing` do tworzenia i udostępniania plików PDF.
 
 ## Instalacja i Konfiguracja
 

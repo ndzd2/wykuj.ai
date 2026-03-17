@@ -64,5 +64,28 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
       console.error('Failed to parse flashcards JSON:', error, response);
       throw new Error('Nie udało się wygenerować fiszek w poprawnym formacie.');
     }
+  },
+
+  async generateQuiz(context, count = 5) {
+    const prompt = `Na podstawie poniższych materiałów wygeneruj ${count} pytań testowych wielokrotnego wyboru w formacie JSON. 
+Każde pytanie musi mieć:
+- "question": treść pytania
+- "options": tablica 4 możliwych odpowiedzi (tekst)
+- "correct_answer": poprawna odpowiedź (musi być dokładnie taka sama jak jedna z opcji)
+
+Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego tekstu.\n\nMaterialy:\n${context}`;
+
+    const response = await this.sendMessage([
+      { role: 'system', content: 'Jesteś asystentem tworzącym quizy edukacyjne w formacie JSON.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    try {
+      const jsonString = response.replace(/```json|```/g, '').trim();
+      return JSON.parse(jsonString);
+    } catch (error) {
+      console.error('Failed to parse quiz JSON:', error, response);
+      throw new Error('Nie udało się wygenerować quizu w poprawnym formacie.');
+    }
   }
 };

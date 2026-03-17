@@ -6,7 +6,7 @@ import { MessageSquare, Paperclip, FileText, GraduationCap } from 'lucide-react-
 import ChatComponent from '../components/ChatComponent';
 import MaterialsComponent from '../components/MaterialsComponent';
 import NotesComponent from '../components/NotesComponent';
-import FlashcardsView from '../components/FlashcardsView';
+import StudyModule from '../components/StudyModule';
 
 const ProjectDetailScreen = ({ route, navigation }) => {
   const { project } = route.params;
@@ -22,7 +22,7 @@ const ProjectDetailScreen = ({ route, navigation }) => {
       case 'chat': return <ChatComponent />;
       case 'materials': return <MaterialsComponent />;
       case 'notes': return <NotesComponent />;
-      case 'study': return <FlashcardsView />;
+      case 'study': return <StudyModule />;
       default: return <ChatComponent />;
     }
   };

@@ -21,6 +21,7 @@
     "expo-file-system": "~19.0.21",
     "expo-linking": "~8.0.11",
     "expo-pdf-text-extract": "^1.0.1",
+    "expo-print": "~15.0.8",
     "expo-secure-store": "^55.0.8",
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",

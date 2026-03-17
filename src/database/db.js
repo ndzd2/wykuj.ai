@@ -41,6 +41,24 @@ export const initDatabase = async () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS quizzes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER,
+      title TEXT NOT NULL,
+      score INTEGER DEFAULT 0,
+      total_questions INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS quiz_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quiz_id INTEGER,
+      question TEXT NOT NULL,
+      options TEXT NOT NULL, -- JSON string array
+      correct_answer TEXT NOT NULL,
+      user_answer TEXT,
+      FOREIGN KEY(quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
+    );
   `);
 
   const tableInfo = await db.getAllAsync("PRAGMA table_info(projects);");
@@ -143,5 +161,54 @@ export const database = {
     for (const card of flashcards) {
       await db.runAsync('INSERT INTO flashcards (project_id, question, answer) VALUES (?, ?, ?);', [projectId, card.question, card.answer]);
     }
+  },
+
+  // --- Quiz Methods ---
+  createQuiz: async (projectId, title, totalQuestions) => {
+    const db = await openDB();
+    const result = await db.runAsync(
+      'INSERT INTO quizzes (project_id, title, total_questions) VALUES (?, ?, ?);',
+      [projectId, title, totalQuestions]
+    );
+    return result.lastInsertRowId;
+  },
+
+  addQuizQuestions: async (quizId, questions) => {
+    const db = await openDB();
+    for (const q of questions) {
+      await db.runAsync(
+        'INSERT INTO quiz_questions (quiz_id, question, options, correct_answer) VALUES (?, ?, ?, ?);',
+        [quizId, q.question, JSON.stringify(q.options), q.correct_answer]
+      );
+    }
+  },
+
+  getQuizzes: async (projectId) => {
+    const db = await openDB();
+    return await db.getAllAsync(
+      'SELECT * FROM quizzes WHERE project_id = ? ORDER BY created_at DESC;',
+      [projectId]
+    );
+  },
+
+  getQuizQuestions: async (quizId) => {
+    const db = await openDB();
+    const rows = await db.getAllAsync('SELECT * FROM quiz_questions WHERE quiz_id = ?;', [quizId]);
+    return rows.map(r => ({ ...r, options: JSON.parse(r.options) }));
+  },
+
+  updateQuizResult: async (quizId, score, userAnswersMap) => {
+    const db = await openDB();
+    await db.runAsync('UPDATE quizzes SET score = ? WHERE id = ?;', [score, quizId]);
+    
+    // userAnswersMap: { questionId: answerText }
+    for (const [qId, ans] of Object.entries(userAnswersMap)) {
+      await db.runAsync('UPDATE quiz_questions SET user_answer = ? WHERE id = ?;', [ans, qId]);
+    }
+  },
+
+  deleteQuiz: async (id) => {
+    const db = await openDB();
+    await db.runAsync('DELETE FROM quizzes WHERE id = ?;', [id]);
   }
 };
