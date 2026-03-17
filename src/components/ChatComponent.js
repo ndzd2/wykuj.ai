@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
 import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2 } from 'lucide-react-native';
 import { aiService } from '../services/aiService';
 import { useStore } from '../store/useStore';
@@ -83,7 +83,19 @@ const ChatComponent = () => {
           <Text className="text-slate-500 text-[10px]">{new Date(item.created_at).toLocaleString('pl-PL')}</Text>
         </View>
       </View>
-      <TouchableOpacity onPress={() => deleteChatSession(item.id)} className="p-2">
+      <TouchableOpacity 
+        onPress={() => {
+          Alert.alert(
+            "Usuń czat",
+            `Czy na pewno chcesz usunąć czat "${item.title}"?`,
+            [
+              { text: "Anuluj", style: "cancel" },
+              { text: "Usuń", onPress: () => deleteChatSession(item.id), style: "destructive" }
+            ]
+          );
+        }} 
+        className="p-2"
+      >
         <Trash2 size={16} color="#f87171" opacity={0.6} />
       </TouchableOpacity>
     </TouchableOpacity>
