@@ -7,6 +7,9 @@ wykuj.ai to zaawansowana platforma edukacyjna oparta na sztucznej inteligencji, 
 ### Zarządzanie Projektami
 Aplikacja pozwala na organizację nauki w ramach oddzielnych projektów. Każdy projekt posiada własną bazę materiałów, notatek oraz historię interakcji z AI, co zapewnia strukturalne podejście do wielu dziedzin nauki jednocześnie.
 
+### Bezpieczeństwo i Konta Użytkowników
+Aplikacja posiada wbudowany system lokalnej autoryzacji (rejestracja i logowanie). Wszystkie dane (projekty, materiały, historia) są przypisane do konkretnego konta użytkownika, co pozwala na współdzielenie urządzenia przez wiele osób z zachowaniem pełnej prywatności danych.
+
 ### Inteligentne Przetwarzanie Materiałów
 wykuj.ai posiada wbudowany silnik do lokalnej ekstrakcji tekstu z różnorodnych formatów dokumentów. Pozwala to sztucznej inteligencji na bezpośrednią naukę z plików dostarczonych przez użytkownika, eliminując konieczność ręcznego wprowadzania danych.
 Obsługiwane formaty:
@@ -27,9 +30,11 @@ Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe od
 - Zoptymalizowane komponenty interfejsu użytkownika.
 - Stylizacja przy użyciu NativeWind (Tailwind CSS dla React Native).
 
-### Zarządzanie Danymi
-- Persystencja lokalna: SQLite (expo-sqlite) zapewniający bezpieczne i szybkie przechowywanie danych offline.
-- Zarządzanie stanem: Zustand dla wydajnej i reaktywnej obsługi logiki aplikacji.
+### Zarządzanie Danymi i Bezpieczeństwo
+- **Persystencja lokalna**: SQLite (expo-sqlite) zapewniający bezpieczne i szybkie przechowywanie danych offline.
+- **Autoryzacja**: Lokalne hashowanie haseł przy użyciu biblioteki `bcryptjs` oraz `expo-crypto` dla zapewnienia najwyższych standardów bezpieczeństwa.
+- **Bezpieczne przechowywanie**: Wykorzystanie `expo-secure-store` do zarządzania sesjami użytkownika.
+- **Zarządzanie stanem**: Zustand dla wydajnej i reaktywnej obsługi logiki aplikacji.
 
 ### Usługi i Przetwarzanie
 - Integracja AI: API Groq wykorzystujące modele z rodziny Llama 3.
