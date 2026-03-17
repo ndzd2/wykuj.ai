@@ -63,7 +63,6 @@ const MaterialsComponent = () => {
             }
             else if (extension === 'pptx') {
               try {
-                // pptx-parser usually takes a buffer or ArrayBuffer
                 const result = await parsePptx(arrayBuffer);
                 let allText = '';
                 result.slides.forEach((slide, index) => {

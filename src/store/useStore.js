@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { database } from '../database/db';
 import { authService } from '../services/authService';
+import { aiService } from '../services/aiService';
 
 export const useStore = create((set, get) => ({
   user: null,
   projects: [],
   currentProject: null,
   materials: [],
+  flashcards: [],
   loading: false,
 
   setUser: (user) => set({ user }),
@@ -66,7 +68,8 @@ export const useStore = create((set, get) => ({
     set({ currentProject: project, loading: true });
     try {
       const materials = await database.getMaterials(project.id);
-      set({ materials, loading: false });
+      const flashcards = await database.getFlashcards(project.id);
+      set({ materials, flashcards, loading: false });
     } catch (error) {
       console.error(error);
       set({ loading: false });
@@ -126,6 +129,47 @@ export const useStore = create((set, get) => ({
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  },
+
+  fetchFlashcards: async (projectId) => {
+    try {
+      const flashcards = await database.getFlashcards(projectId);
+      set({ flashcards });
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  generateFlashcards: async () => {
+    const { currentProject, materials, flashcards } = get();
+    if (!currentProject || materials.length === 0) return;
+
+    set({ loading: true });
+    try {
+      const context = materials.map(m => m.content).join('\n\n');
+      const newCards = await aiService.generateFlashcards(context, flashcards);
+      
+      await database.saveFlashcards(currentProject.id, newCards);
+      await get().fetchFlashcards(currentProject.id);
+      set({ loading: false });
+      return true;
+    } catch (error) {
+      console.error(error);
+      set({ loading: false });
+      throw error;
+    }
+  },
+
+  deleteFlashcard: async (id) => {
+    try {
+      await database.deleteFlashcard(id);
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        await get().fetchFlashcards(projectId);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }
 }));

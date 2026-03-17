@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
-import { MessageSquare, Paperclip, FileText } from 'lucide-react-native';
+import { MessageSquare, Paperclip, FileText, GraduationCap } from 'lucide-react-native';
 import ChatComponent from '../components/ChatComponent';
 import MaterialsComponent from '../components/MaterialsComponent';
 import NotesComponent from '../components/NotesComponent';
+import FlashcardsView from '../components/FlashcardsView';
 
 const ProjectDetailScreen = ({ route, navigation }) => {
   const { project } = route.params;
@@ -21,6 +22,7 @@ const ProjectDetailScreen = ({ route, navigation }) => {
       case 'chat': return <ChatComponent />;
       case 'materials': return <MaterialsComponent />;
       case 'notes': return <NotesComponent />;
+      case 'study': return <FlashcardsView />;
       default: return <ChatComponent />;
     }
   };
@@ -42,6 +44,12 @@ const ProjectDetailScreen = ({ route, navigation }) => {
           icon={<MessageSquare size={18} />} 
           onPress={() => setActiveTab('chat')} 
           label="Czat AI"
+        />
+        <TabButton 
+          active={activeTab === 'study'} 
+          icon={<GraduationCap size={18} />} 
+          onPress={() => setActiveTab('study')} 
+          label="Nauka"
         />
         <TabButton 
           active={activeTab === 'materials'} 

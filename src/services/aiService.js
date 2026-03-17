@@ -39,5 +39,30 @@ export const aiService = {
       { role: 'system', content: 'Jesteś pomocnym asystentem naukowym.' },
       { role: 'user', content: prompt }
     ]);
+  },
+
+  async generateFlashcards(context, existingCards = []) {
+    const existingQuests = existingCards.map(c => `- ${c.question}`).join('\n');
+    const existingPrompt = existingCards.length > 0 
+      ? `\n\nOto pytania, które JUŻ MAMY (NIE POWTARZAJ ICH):\n${existingQuests}` 
+      : '';
+
+    const prompt = `Na podstawie poniższych materiałów wygeneruj 5-10 NOWYCH fiszek naukowych w formacie JSON. 
+Każda fiszka musi mieć pola "question" (pytanie/pojęcie) oraz "answer" (odpowiedź/definicja).${existingPrompt}
+Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego tekstu czy formatowania markdown.\n\nMaterialy:\n${context}`;
+
+    const response = await this.sendMessage([
+      { role: 'system', content: 'Jesteś asystentem tworzącym materiały do nauki w formacie JSON.' },
+      { role: 'user', content: prompt }
+    ]);
+
+    try {
+      // Clean potential markdown code blocks if the AI included them
+      const jsonString = response.replace(/```json|```/g, '').trim();
+      return JSON.parse(jsonString);
+    } catch (error) {
+      console.error('Failed to parse flashcards JSON:', error, response);
+      throw new Error('Nie udało się wygenerować fiszek w poprawnym formacie.');
+    }
   }
 };

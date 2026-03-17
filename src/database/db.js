@@ -31,6 +31,14 @@ export const initDatabase = async () => {
       type TEXT, 
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS flashcards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER,
+      question TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
   `);
 
   // Migration: Add user_id to projects if it doesn't exist
@@ -90,5 +98,29 @@ export const database = {
   deleteMaterial: async (id) => {
     const db = await openDB();
     await db.runAsync('DELETE FROM materials WHERE id = ?;', [id]);
+  },
+
+  // --- Flashcards Methods ---
+  addFlashcard: async (projectId, question, answer) => {
+    const db = await openDB();
+    const result = await db.runAsync('INSERT INTO flashcards (project_id, question, answer) VALUES (?, ?, ?);', [projectId, question, answer]);
+    return result.lastInsertRowId;
+  },
+
+  getFlashcards: async (projectId) => {
+    const db = await openDB();
+    return await db.getAllAsync('SELECT * FROM flashcards WHERE project_id = ? ORDER BY created_at DESC;', [projectId]);
+  },
+
+  deleteFlashcard: async (id) => {
+    const db = await openDB();
+    await db.runAsync('DELETE FROM flashcards WHERE id = ?;', [id]);
+  },
+
+  saveFlashcards: async (projectId, flashcards) => {
+    const db = await openDB();
+    for (const card of flashcards) {
+      await db.runAsync('INSERT INTO flashcards (project_id, question, answer) VALUES (?, ?, ?);', [projectId, card.question, card.answer]);
+    }
   }
 };
