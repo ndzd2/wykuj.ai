@@ -22,11 +22,11 @@ export const aiService = {
 
       const data = await response.json();
       console.log('Groq API Response:', JSON.stringify(data));
-      
+
       if (data.error) {
         return `Błąd AI: ${data.error.message || 'Nieznany błąd'}`;
       }
-      
+
       return data.choices?.[0]?.message?.content || 'Brak odpowiedzi od AI (pusty wynik).';
     } catch (error) {
       console.error('Groq API Error details:', error);
@@ -36,7 +36,7 @@ export const aiService = {
 
   async generateNotes(context, length = 'medium') {
     const prompt = `Na podstawie poniższych materiałów wygeneruj ${length} notatki w formacie Markdown. Skup się na najważniejszych informacjach.\n\nMaterialy:\n${context}`;
-    
+
     return this.sendMessage([
       { role: 'system', content: 'Jesteś pomocnym asystentem naukowym.' },
       { role: 'user', content: prompt }
@@ -45,8 +45,8 @@ export const aiService = {
 
   async generateFlashcards(context, existingCards = []) {
     const existingQuests = existingCards.map(c => `- ${c.question}`).join('\n');
-    const existingPrompt = existingCards.length > 0 
-      ? `\n\nOto pytania, które JUŻ MAMY (NIE POWTARZAJ ICH):\n${existingQuests}` 
+    const existingPrompt = existingCards.length > 0
+      ? `\n\nOto pytania, które JUŻ MAMY (NIE POWTARZAJ ICH):\n${existingQuests}`
       : '';
 
     const prompt = `Na podstawie poniższych materiałów wygeneruj 5-10 NOWYCH fiszek naukowych w formacie JSON. 
@@ -88,6 +88,20 @@ Zwróć TYLKO czysty kod JSON jako tablicę obiektów, bez żadnego dodatkowego 
     } catch (error) {
       console.error('Failed to parse quiz JSON:', error, response);
       throw new Error('Nie udało się wygenerować quizu w poprawnym formacie.');
+    }
+  },
+
+  async generateChatTitle(userMessage, aiResponse) {
+    const prompt = `Stwórz bardzo krótki, maksymalnie 3-5 słowny tytuł dla rozmowy, na podstawie zapytania użytkownika: "${userMessage}", oraz odpowiedzi od AI: "${aiResponse}"
+    
+    Zwróć TYLKO tytuł w języku polskim, bez cudzysłowów, bez kropek, nic więcej.`;
+
+    try {
+      const response = await this.sendMessage([{ role: 'user', content: prompt }]);
+      return response.trim().replace(/["']/g, '');
+    } catch (error) {
+      console.error('Error generating title:', error);
+      return 'Nowa rozmowa';
     }
   },
 

@@ -1,40 +1,49 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
-import { Send, User, Bot, Sparkles } from 'lucide-react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2 } from 'lucide-react-native';
 import { aiService } from '../services/aiService';
 import { useStore } from '../store/useStore';
 
 const ChatComponent = () => {
-  const { materials } = useStore();
-  const [messages, setMessages] = useState([]);
+  const { currentProject, chatMessages, chatSessions, currentSession, sendChatMessage, createNewSession, switchSession, deleteChatSession, updateSessionTitle } = useStore();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
   const flatListRef = useRef();
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  // Sync edited title when session changes
+  useEffect(() => {
+    setEditedTitle(currentSession?.title || '');
+  }, [currentSession]);
 
-    const userMessage = { role: 'user', content: input };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+  const handleSend = async () => {
+    if (!input.trim() || !currentProject) return;
+
+    const messageContent = input.trim();
     setInput('');
     setIsTyping(true);
 
     try {
-      const context = materials.map(m => `Plik: ${m.name}\nTreść: ${m.content}`).join('\n\n');
-      const systemMessage = { 
-        role: 'system', 
-        content: `Jesteś asystentem naukowym. Odpowiadaj na pytania na podstawie poniższych materiałów:\n\n${context}` 
-      };
-
-      const response = await aiService.sendMessage([systemMessage, ...newMessages]);
-      setMessages([...newMessages, { role: 'assistant', content: response }]);
+      await sendChatMessage(currentProject.id, messageContent);
     } catch (error) {
       console.error(error);
-      setMessages([...newMessages, { role: 'assistant', content: 'Przepraszam, wystąpił błąd podczas pobierania odpowiedzi.' }]);
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleSaveTitle = async () => {
+    if (currentSession && editedTitle.trim() && editedTitle !== currentSession.title) {
+      await updateSessionTitle(currentSession.id, editedTitle.trim());
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleNewChat = async () => {
+    if (!currentProject) return;
+    await createNewSession(currentProject.id);
   };
 
   const renderMessage = ({ item }) => (
@@ -57,15 +66,77 @@ const ChatComponent = () => {
     </View>
   );
 
+  const renderSessionItem = ({ item }) => (
+    <TouchableOpacity 
+      onPress={() => {
+        switchSession(item);
+        setHistoryVisible(false);
+      }}
+      className={`p-4 mb-2 rounded-xl flex-row items-center justify-between ${
+        currentSession?.id === item.id ? 'bg-indigo-600/20 border border-indigo-500/50' : 'bg-slate-800 border border-slate-700'
+      }`}
+    >
+      <View className="flex-1 flex-row items-center">
+        <MessageSquare size={16} color={currentSession?.id === item.id ? '#818cf8' : '#64748b'} className="mr-3" />
+        <View className="flex-1">
+          <Text className="text-white font-medium" numberOfLines={1}>{item.title}</Text>
+          <Text className="text-slate-500 text-[10px]">{new Date(item.created_at).toLocaleString('pl-PL')}</Text>
+        </View>
+      </View>
+      <TouchableOpacity onPress={() => deleteChatSession(item.id)} className="p-2">
+        <Trash2 size={16} color="#f87171" opacity={0.6} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+
   return (
     <View className="flex-1">
+      {/* Chat Header */}
+      <View className="flex-row justify-between items-center px-4 py-3 border-b border-slate-800">
+        <TouchableOpacity 
+          onPress={() => setHistoryVisible(true)}
+          className="p-2 bg-slate-800 rounded-lg border border-slate-700"
+        >
+          <History size={18} color="#6366f1" />
+        </TouchableOpacity>
+
+        <View className="flex-1 mx-4">
+          {isEditingTitle ? (
+            <TextInput
+              className="text-white font-bold text-center bg-slate-800 px-2 py-1 rounded border border-indigo-500/50"
+              value={editedTitle}
+              onChangeText={setEditedTitle}
+              onBlur={handleSaveTitle}
+              onSubmitEditing={handleSaveTitle}
+              autoFocus
+              maxLength={50}
+            />
+          ) : (
+            <TouchableOpacity onPress={() => setIsEditingTitle(true)}>
+              <Text className="text-white font-bold text-center text-sm" numberOfLines={1}>
+                {currentSession?.title || 'Nowy czat'}
+              </Text>
+              <Text className="text-indigo-400/50 text-[8px] text-center font-bold uppercase tracking-tighter">Kliknij, by zmienić nazwę</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <TouchableOpacity 
+          onPress={handleNewChat}
+          className="flex-row items-center bg-indigo-600 px-3 py-2 rounded-lg"
+        >
+          <Plus size={16} color="white" className="mr-1" />
+          <Text className="text-white text-xs font-bold">Nowy</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         ref={flatListRef}
-        data={messages}
+        data={chatMessages}
         renderItem={renderMessage}
-        keyExtractor={(_, index) => index.toString()}
-        className="flex-1 pt-4"
-        contentContainerStyle={{ paddingBottom: 20 }}
+        keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+        className="flex-1 pt-2"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
           <View className="items-center mt-20 px-10">
@@ -74,7 +145,7 @@ const ChatComponent = () => {
             </View>
             <Text className="text-white text-xl font-bold mb-2">Cześć! O czym pogadamy?</Text>
             <Text className="text-slate-500 text-center leading-5">
-              Zadaj pytanie dotyczące Twoich materiałów, a ja pomogę Ci je zrozumieć i zapamiętać.
+              Zadaj pytanie dotyczące Twoich materiałów. Historia tej rozmowy zostanie zapisana automatycznie.
             </Text>
           </View>
         }
@@ -83,6 +154,7 @@ const ChatComponent = () => {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         keyboardVerticalOffset={Platform.OS === 'ios' ? 140 : 100}
+        style={{ paddingHorizontal: 16 }}
       >
         {isTyping && (
           <View className="ml-2 mb-2 flex-row items-center">
@@ -91,7 +163,7 @@ const ChatComponent = () => {
           </View>
         )}
 
-        <View className="flex-row items-end mb-6 bg-slate-800 rounded-2xl p-2 border border-slate-700 shadow-lg">
+        <View className="flex-row items-end mb-6 bg-slate-800 rounded-2xl p-1 border border-slate-700 shadow-lg">
           <TextInput
             className="flex-1 text-white p-3 min-h-[48] max-h-32 text-base"
             placeholder="Napisz do AI..."
@@ -101,7 +173,7 @@ const ChatComponent = () => {
             multiline
           />
           <TouchableOpacity 
-            className={`p-3 rounded-xl ml-2 ${input.trim() ? 'bg-indigo-600' : 'bg-slate-700'}`}
+            className={`p-3 rounded-xl ml-1 mb-1 ${input.trim() ? 'bg-indigo-600' : 'bg-slate-700'}`}
             onPress={handleSend}
             disabled={!input.trim()}
           >
@@ -109,6 +181,36 @@ const ChatComponent = () => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* History Modal */}
+      <Modal
+        visible={historyVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setHistoryVisible(false)}
+      >
+        <View className="flex-1 bg-black/80 justify-end">
+          <View className="bg-slate-900 border-t border-slate-700 rounded-t-3xl h-[70%] p-6">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-white text-xl font-bold">Poprzednie rozmowy</Text>
+              <TouchableOpacity onPress={() => setHistoryVisible(false)} className="p-2 bg-slate-800 rounded-full">
+                <X size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={chatSessions}
+              renderItem={renderSessionItem}
+              keyExtractor={(item) => item.id.toString()}
+              ListEmptyComponent={
+                <View className="items-center py-20">
+                  <Text className="text-slate-500">Brak historii rozmów.</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

@@ -59,6 +59,23 @@ export const initDatabase = async () => {
       user_answer TEXT,
       FOREIGN KEY(quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER,
+      project_id INTEGER, -- kept for backward compatibility and easy project-wide queries
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER,
+      title TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
   `);
 
   const tableInfo = await db.getAllAsync("PRAGMA table_info(projects);");
@@ -81,6 +98,18 @@ export const initDatabase = async () => {
       console.log('Added is_learned column to flashcards table');
     } catch (error) {
       console.error('Migration failed (flashcards):', error);
+    }
+  }
+
+  // Migration: Add session_id to chat_messages if it's missing (from previous task)
+  const chatInfo = await db.getAllAsync("PRAGMA table_info(chat_messages);");
+  const hasSessionId = chatInfo.some(column => column.name === 'session_id');
+  if (!hasSessionId) {
+    try {
+      await db.execAsync("ALTER TABLE chat_messages ADD COLUMN session_id INTEGER;");
+      console.log('Added session_id column to chat_messages table');
+    } catch (error) {
+           console.error('Migration failed (chat_messages):', error);
     }
   }
 };
@@ -210,5 +239,50 @@ export const database = {
   deleteQuiz: async (id) => {
     const db = await openDB();
     await db.runAsync('DELETE FROM quizzes WHERE id = ?;', [id]);
+  },
+
+  // --- Chat History Methods ---
+  createChatSession: async (projectId, title = 'Nowy czat') => {
+    const db = await openDB();
+    const result = await db.runAsync(
+      'INSERT INTO chat_sessions (project_id, title) VALUES (?, ?);',
+      [projectId, title]
+    );
+    return result.lastInsertRowId;
+  },
+
+  getChatSessions: async (projectId) => {
+    const db = await openDB();
+    return await db.getAllAsync(
+      'SELECT * FROM chat_sessions WHERE project_id = ? ORDER BY created_at DESC;',
+      [projectId]
+    );
+  },
+
+  saveChatMessage: async (sessionId, projectId, role, content) => {
+    const db = await openDB();
+    const result = await db.runAsync(
+      'INSERT INTO chat_messages (session_id, project_id, role, content) VALUES (?, ?, ?, ?);',
+      [sessionId, projectId, role, content]
+    );
+    return result.lastInsertRowId;
+  },
+
+  getChatMessages: async (sessionId) => {
+    const db = await openDB();
+    return await db.getAllAsync(
+      'SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC;',
+      [sessionId]
+    );
+  },
+
+  deleteChatSession: async (sessionId) => {
+    const db = await openDB();
+    await db.runAsync('DELETE FROM chat_sessions WHERE id = ?;', [sessionId]);
+  },
+
+  updateChatSessionTitle: async (sessionId, title) => {
+    const db = await openDB();
+    await db.runAsync('UPDATE chat_sessions SET title = ? WHERE id = ?;', [title, sessionId]);
   }
 };

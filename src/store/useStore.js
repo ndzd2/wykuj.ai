@@ -11,6 +11,9 @@ export const useStore = create((set, get) => ({
   flashcards: [],
   quizzes: [],
   currentQuizQuestions: [],
+  chatMessages: [],
+  chatSessions: [],
+  currentSession: null,
   loading: false,
 
   setUser: (user) => set({ user }),
@@ -72,7 +75,17 @@ export const useStore = create((set, get) => ({
       const materials = await database.getMaterials(project.id);
       const flashcards = await database.getFlashcards(project.id);
       const quizzes = await database.getQuizzes(project.id);
-      set({ materials, flashcards, quizzes, loading: false });
+      
+      // Load chat sessions and the most recent one
+      const chatSessions = await database.getChatSessions(project.id);
+      let currentSession = chatSessions[0] || null;
+      let chatMessages = [];
+      
+      if (currentSession) {
+        chatMessages = await database.getChatMessages(currentSession.id);
+      }
+
+      set({ materials, flashcards, quizzes, chatSessions, currentSession, chatMessages, loading: false });
     } catch (error) {
       console.error(error);
       set({ loading: false });
@@ -249,6 +262,137 @@ export const useStore = create((set, get) => ({
       const projectId = get().currentProject?.id;
       if (projectId) {
         await get().fetchQuizzes(projectId);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  // --- Chat Actions ---
+  fetchChatSessions: async (projectId) => {
+    try {
+      const chatSessions = await database.getChatSessions(projectId);
+      set({ chatSessions });
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  createNewSession: async (projectId, title = 'Nowy czat') => {
+    try {
+      const sessionId = await database.createChatSession(projectId, title);
+      const chatSessions = await database.getChatSessions(projectId);
+      const currentSession = chatSessions.find(s => s.id === sessionId);
+      set({ chatSessions, currentSession, chatMessages: [] });
+      return sessionId;
+    } catch (error) {
+      console.error(error);
+    }
+  },
+  switchSession: async (session) => {
+    set({ loading: true });
+    try {
+      const chatMessages = await database.getChatMessages(session.id);
+      set({ currentSession: session, chatMessages, loading: false });
+    } catch (error) {
+      console.error(error);
+      set({ loading: false });
+    }
+  },
+
+  updateSessionTitle: async (sessionId, title) => {
+    try {
+      await database.updateChatSessionTitle(sessionId, title);
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        const sessions = await database.getChatSessions(projectId);
+        set({ 
+          chatSessions: sessions,
+          currentSession: sessions.find(s => s.id === sessionId) || get().currentSession
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  sendChatMessage: async (projectId, content) => {
+    const { currentSession, chatMessages } = get();
+    
+    try {
+      // 1. Ensure we have a session
+      let activeSession = currentSession;
+      if (!activeSession) {
+        const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
+        const sessionId = await database.createChatSession(projectId, title);
+        const sessions = await database.getChatSessions(projectId);
+        activeSession = sessions.find(s => s.id === sessionId);
+        set({ chatSessions: sessions, currentSession: activeSession });
+      }
+
+      // 2. Save user message
+      await database.saveChatMessage(activeSession.id, projectId, 'user', content);
+      
+      // 3. Update local state
+      const userMessage = { role: 'user', content };
+      const newMessages = [...chatMessages, userMessage];
+      set({ chatMessages: newMessages });
+
+      // 4. AIService context
+      const materials = get().materials;
+      const context = materials.map(m => `Plik: ${m.name}\nTreść: ${m.content}`).join('\n\n');
+      const systemMessage = { 
+        role: 'system', 
+        content: `Jesteś asystentem naukowym. Odpowiadaj na pytania na podstawie poniższych materiałów:\n\n${context}` 
+      };
+      const history = chatMessages.map(m => ({ role: m.role, content: m.content }));
+
+      // 5. Get AI response
+      const response = await aiService.sendMessage([systemMessage, ...history, userMessage]);
+      
+      // 6. Save assistant response
+      await database.saveChatMessage(activeSession.id, projectId, 'assistant', response);
+      
+      // 7. Auto-generate title if it's the first exchange
+      if (chatMessages.length === 0) {
+        try {
+          const autoTitle = await aiService.generateChatTitle(content, response);
+          await database.updateChatSessionTitle(activeSession.id, autoTitle);
+          const sessions = await database.getChatSessions(projectId);
+          set({ 
+            chatSessions: sessions, 
+            currentSession: sessions.find(s => s.id === activeSession.id) 
+          });
+        } catch (titleError) {
+          console.error('Failed to auto-generate title:', titleError);
+        }
+      }
+
+      // 8. Final sync
+      const finalMessages = await database.getChatMessages(activeSession.id);
+      set({ chatMessages: finalMessages });
+      
+      return true;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  },
+
+  deleteChatSession: async (sessionId) => {
+    try {
+      await database.deleteChatSession(sessionId);
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        const sessions = await database.getChatSessions(projectId);
+        set({ chatSessions: sessions });
+        if (get().currentSession?.id === sessionId) {
+          if (sessions.length > 0) {
+            get().switchSession(sessions[0]);
+          } else {
+            set({ currentSession: null, chatMessages: [] });
+          }
+        }
       }
     } catch (error) {
       console.error(error);
