@@ -14,6 +14,7 @@ export const useStore = create((set, get) => ({
   chatMessages: [],
   chatSessions: [],
   currentSession: null,
+  searchQuery: '',
   loading: false,
 
   setUser: (user) => set({ user }),
@@ -85,12 +86,14 @@ export const useStore = create((set, get) => ({
         chatMessages = await database.getChatMessages(currentSession.id);
       }
 
-      set({ materials, flashcards, quizzes, chatSessions, currentSession, chatMessages, loading: false });
+      set({ materials, flashcards, quizzes, chatSessions, currentSession, chatMessages, searchQuery: '', loading: false });
     } catch (error) {
       console.error(error);
       set({ loading: false });
     }
   },
+
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
   addProject: async (name, description) => {
     const user = get().user;

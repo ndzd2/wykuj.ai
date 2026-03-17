@@ -27,6 +27,7 @@
     "expo-print": "~15.0.8",
     "expo-secure-store": "^55.0.8",
     "expo-sharing": "~14.0.8",
+    "expo-speech": "^55.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "lucide-react-native": "^0.577.0",

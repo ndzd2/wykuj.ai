@@ -10,11 +10,11 @@ import { Buffer } from 'buffer';
 import { parsePptx } from 'pptx-parser';
 import * as ImagePicker from 'expo-image-picker';
 import { aiService } from '../services/aiService';
-import { Mic, Camera, Image as ImageIcon, Music, FileText, Plus, X, UploadCloud, Info, Trash2, Edit3 } from 'lucide-react-native';
+import { Mic, Camera, Image as ImageIcon, Music, FileText, Plus, X, UploadCloud, Info, Trash2, Edit3, Search } from 'lucide-react-native';
 import { useAudioRecorder, requestRecordingPermissionsAsync, getRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
 
 const MaterialsComponent = () => {
-  const { materials, currentProject, addMaterial, updateMaterial, deleteMaterial } = useStore();
+  const { materials, currentProject, addMaterial, updateMaterial, deleteMaterial, searchQuery, setSearchQuery } = useStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [fileName, setFileName] = useState('');
@@ -294,26 +294,30 @@ const MaterialsComponent = () => {
   };
 
   const renderMaterialItem = ({ item }) => (
-    <View className="bg-slate-800 p-4 rounded-2xl mb-3 border border-slate-700 flex-row items-center">
-      <View className="bg-indigo-500/10 p-3 rounded-xl mr-4">
-        <FileText color="#6366f1" size={24} />
+    <View className="bg-slate-800/80 p-4 rounded-3xl mb-4 border border-slate-700/50 flex-row items-center shadow-lg shadow-black/20">
+      <View className="bg-indigo-500/10 p-4 rounded-2xl mr-4 border border-indigo-500/10">
+        <FileText color="#818cf8" size={22} />
       </View>
       <View className="flex-1">
-        <Text className="text-white font-semibold text-base" numberOfLines={1}>{item.name}</Text>
-        <Text className="text-slate-500 text-xs mt-0.5">Materiały tekstowe • {item.content.length} znaków</Text>
+        <Text className="text-white font-bold text-base" numberOfLines={1}>{item.name}</Text>
+        <View className="flex-row items-center mt-1">
+          <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Text</Text>
+          <View className="w-1 h-1 bg-slate-700 rounded-full mx-2" />
+          <Text className="text-slate-500 text-[10px]">{item.content.length} znaków</Text>
+        </View>
       </View>
       <View className="flex-row">
         <TouchableOpacity
-          className="p-2 ml-2 bg-slate-700/50 rounded-lg"
+          className="p-2.5 ml-2 bg-slate-700/30 rounded-xl border border-slate-600/30"
           onPress={() => openModal(item)}
         >
           <Edit3 color="#94a3b8" size={16} />
         </TouchableOpacity>
         <TouchableOpacity
-          className="p-2 ml-2 bg-red-500/10 rounded-lg"
+          className="p-2.5 ml-2 bg-red-500/5 rounded-xl border border-red-500/10"
           onPress={() => handleDelete(item.id)}
         >
-          <Trash2 color="#ef4444" size={16} />
+          <Trash2 color="#f87171" size={16} opacity={0.8} />
         </TouchableOpacity>
       </View>
     </View>
@@ -329,15 +333,35 @@ const MaterialsComponent = () => {
       </View>
 
       <TouchableOpacity
-        className="bg-indigo-600 p-4 rounded-2xl mb-6 flex-row justify-center items-center shadow-lg shadow-indigo-500/20"
+        className="bg-indigo-600 p-4 rounded-2xl mb-4 flex-row justify-center items-center shadow-lg shadow-indigo-500/20"
         onPress={() => openModal()}
       >
         <Plus color="white" size={20} />
         <Text className="text-white font-bold ml-2 text-base">Dodaj nowy materiał</Text>
       </TouchableOpacity>
 
+      {/* Search Bar */}
+      <View className="flex-row items-center bg-slate-800/80 px-4 py-3 rounded-2xl mb-6 border border-slate-700">
+        <Search size={18} color="#64748b" className="mr-3" />
+        <TextInput 
+          className="flex-1 text-white text-sm"
+          placeholder="Szukaj w materiałach..."
+          placeholderTextColor="#64748b"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <X size={16} color="#64748b" />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <FlatList
-        data={materials}
+        data={materials.filter(m => 
+          m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          m.content.toLowerCase().includes(searchQuery.toLowerCase())
+        )}
         renderItem={renderMaterialItem}
         keyExtractor={item => item.id.toString()}
         ListEmptyComponent={

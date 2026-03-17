@@ -284,5 +284,13 @@ export const database = {
   updateChatSessionTitle: async (sessionId, title) => {
     const db = await openDB();
     await db.runAsync('UPDATE chat_sessions SET title = ? WHERE id = ?;', [title, sessionId]);
+  },
+
+  searchMaterials: async (projectId, query) => {
+    const db = await openDB();
+    return await db.getAllAsync(
+      'SELECT * FROM materials WHERE project_id = ? AND (name LIKE ? OR content LIKE ?) ORDER BY id DESC;',
+      [projectId, `%${query}%`, `%${query}%`]
+    );
   }
 };

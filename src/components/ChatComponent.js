@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
-import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2 } from 'lucide-react-native';
+import { Send, User, Bot, Sparkles, Plus, History, X, MessageSquare, Trash2, Search } from 'lucide-react-native';
 import { aiService } from '../services/aiService';
 import { useStore } from '../store/useStore';
 
@@ -11,6 +11,7 @@ const ChatComponent = () => {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
   const flatListRef = useRef();
 
   // Sync edited title when session changes
@@ -47,21 +48,36 @@ const ChatComponent = () => {
   };
 
   const renderMessage = ({ item }) => (
-    <View className={`mb-4 flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-      <View className={`max-w-[85%] p-4 rounded-2xl ${
-        item.role === 'user' ? 'bg-indigo-600 rounded-tr-none shadow-sm' : 'bg-slate-800 rounded-tl-none border border-slate-700'
-      }`}>
-        <View className="flex-row items-center mb-1.5">
-          {item.role === 'user' ? (
-            <User size={10} color="#c7d2fe" style={{ marginRight: 4 }} />
-          ) : (
-            <Bot size={10} color="#6366f1" style={{ marginRight: 4 }} />
-          )}
-          <Text className={`text-[10px] uppercase font-bold tracking-widest ${item.role === 'user' ? 'text-indigo-200' : 'text-indigo-400'}`}>
-            {item.role === 'user' ? 'Ty' : 'AI Wykuj'}
+    <View className={`mb-5 flex-row ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      <View 
+        className={`max-w-[85%] p-4 rounded-2xl shadow-sm ${
+          item.role === 'user' 
+            ? 'bg-indigo-600 rounded-tr-none' 
+            : 'bg-slate-800 rounded-tl-none border border-slate-700/50'
+        }`}
+        style={item.role === 'user' ? {
+          shadowColor: '#6366f1',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 5
+        } : {}}
+      >
+        <View className="flex-row items-center mb-2">
+          <View className={`p-1 rounded-full mr-2 ${item.role === 'user' ? 'bg-indigo-400/20' : 'bg-indigo-500/20'}`}>
+            {item.role === 'user' ? (
+              <User size={10} color="#c7d2fe" />
+            ) : (
+              <Bot size={10} color="#818cf8" />
+            )}
+          </View>
+          <Text className={`text-[9px] uppercase font-bold tracking-[1.5px] ${item.role === 'user' ? 'text-indigo-200' : 'text-indigo-400'}`}>
+            {item.role === 'user' ? 'Ty' : 'AI Asystent'}
           </Text>
         </View>
-        <Text className="text-white text-[15px] leading-6">{item.content}</Text>
+        <Text className="text-white text-[15px] leading-6 font-medium selection:bg-indigo-500/30">
+          {item.content}
+        </Text>
       </View>
     </View>
   );
@@ -204,16 +220,33 @@ const ChatComponent = () => {
         <View className="flex-1 bg-black/80 justify-end">
           <View className="bg-slate-900 border-t border-slate-700 rounded-t-3xl h-[70%] p-6">
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-white text-xl font-bold">Poprzednie rozmowy</Text>
-              <TouchableOpacity onPress={() => setHistoryVisible(false)} className="p-2 bg-slate-800 rounded-full">
-                <X size={20} color="#94a3b8" />
+              <Text className="text-white text-2xl font-bold">Historia czatów</Text>
+              <TouchableOpacity onPress={() => { setHistoryVisible(false); setHistorySearch(''); }}>
+                <X size={24} color="#94a3b8" />
               </TouchableOpacity>
             </View>
 
+            {/* History Search Bar */}
+            <View className="flex-row items-center bg-slate-800 px-4 py-2 rounded-xl mb-4 border border-slate-700">
+              <Search size={16} color="#64748b" className="mr-2" />
+              <TextInput 
+                className="flex-1 text-white text-xs"
+                placeholder="Szukaj w historii..."
+                placeholderTextColor="#64748b"
+                value={historySearch}
+                onChangeText={setHistorySearch}
+              />
+              {historySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setHistorySearch('')}>
+                  <X size={14} color="#64748b" />
+                </TouchableOpacity>
+              )}
+            </View>
+
             <FlatList
-              data={chatSessions}
+              data={chatSessions.filter(s => s.title.toLowerCase().includes(historySearch.toLowerCase()))}
               renderItem={renderSessionItem}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={item => item.id.toString()}
               ListEmptyComponent={
                 <View className="items-center py-20">
                   <Text className="text-slate-500">Brak historii rozmów.</Text>
