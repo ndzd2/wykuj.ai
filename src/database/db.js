@@ -21,7 +21,8 @@ export const initDatabase = async () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT, 
       name TEXT, 
       description TEXT, 
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      user_id INTEGER
     );
     CREATE TABLE IF NOT EXISTS materials (
       id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -36,12 +37,12 @@ export const initDatabase = async () => {
       project_id INTEGER,
       question TEXT NOT NULL,
       answer TEXT NOT NULL,
+      is_learned INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
   `);
 
-  // Migration: Add user_id to projects if it doesn't exist
   const tableInfo = await db.getAllAsync("PRAGMA table_info(projects);");
   const hasUserId = tableInfo.some(column => column.name === 'user_id');
   if (!hasUserId) {
@@ -49,7 +50,19 @@ export const initDatabase = async () => {
       await db.execAsync("ALTER TABLE projects ADD COLUMN user_id INTEGER;");
       console.log('Added user_id column to projects table');
     } catch (error) {
-      console.error('Migration failed:', error);
+      console.error('Migration failed (projects):', error);
+    }
+  }
+
+  // Migration: Add is_learned to flashcards
+  const flashcardInfo = await db.getAllAsync("PRAGMA table_info(flashcards);");
+  const hasIsLearned = flashcardInfo.some(column => column.name === 'is_learned');
+  if (!hasIsLearned) {
+    try {
+      await db.execAsync("ALTER TABLE flashcards ADD COLUMN is_learned INTEGER DEFAULT 0;");
+      console.log('Added is_learned column to flashcards table');
+    } catch (error) {
+      console.error('Migration failed (flashcards):', error);
     }
   }
 };
@@ -107,9 +120,17 @@ export const database = {
     return result.lastInsertRowId;
   },
 
-  getFlashcards: async (projectId) => {
+  getFlashcards: async (projectId, includeLearned = false) => {
     const db = await openDB();
-    return await db.getAllAsync('SELECT * FROM flashcards WHERE project_id = ? ORDER BY created_at DESC;', [projectId]);
+    const query = includeLearned 
+      ? 'SELECT * FROM flashcards WHERE project_id = ? ORDER BY created_at DESC;'
+      : 'SELECT * FROM flashcards WHERE project_id = ? AND is_learned = 0 ORDER BY created_at DESC;';
+    return await db.getAllAsync(query, [projectId]);
+  },
+
+  markFlashcardAsLearned: async (id) => {
+    const db = await openDB();
+    await db.runAsync('UPDATE flashcards SET is_learned = 1 WHERE id = ?;', [id]);
   },
 
   deleteFlashcard: async (id) => {

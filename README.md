@@ -20,6 +20,12 @@ Obsługiwane formaty:
 - Pliki tekstowe (TXT)
 - Formaty OpenDocument (ODT, ODS, ODP)
 
+### Moduł Nauki i Fiszek AI
+Aplikacja oferuje zaawansowany system nauki oparty na fiszkach generowanych automatycznie przez AI.
+- **Generowanie AI**: Tworzenie zestawów pytań i odpowiedzi na podstawie wgranych materiałów.
+- **Inteligentna Powtarzalność**: AI unika generowania tych samych pytań, biorąc pod uwagę fiszki, które użytkownik już posiada.
+- **Status Opanowania**: Możliwość oznaczania fiszek jako "umiane", co pozwala skupić się na nowym materiale przy zachowaniu kontekstu dla asystenta AI.
+
 ### Synteza i Interakcja AI
 Dzięki integracji z API Groq, aplikacja zapewnia błyskawiczne i kontekstowe odpowiedzi. AI analizuje wgrane materiały, aby odpowiadać na pytania, generować streszczenia lub wyjaśniać złożone zagadnienia w oparciu o kontekst danego projektu.
 

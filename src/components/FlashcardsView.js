@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, StyleSheet, Dimensions } from 'react-native';
 import { useStore } from '../store/useStore';
-import { Brain, RotateCcw, Trash2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react-native';
+import { Brain, RotateCcw, Check, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
 const FlashcardsView = () => {
-  const { flashcards, loading, generateFlashcards, deleteFlashcard } = useStore();
+  const { flashcards, loading, generateFlashcards, markFlashcardAsLearned } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -32,26 +32,13 @@ const FlashcardsView = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    Alert.alert(
-      'Usuń fiszkę',
-      'Czy na pewno chcesz usunąć tę fiszkę?',
-      [
-        { text: 'Anuluj', style: 'cancel' },
-        { 
-          text: 'Usuń', 
-          style: 'destructive', 
-          onPress: async () => {
-            const isLast = currentIndex === flashcards.length - 1;
-            await deleteFlashcard(id);
-            if (isLast && currentIndex > 0) {
-              setCurrentIndex(currentIndex - 1);
-            }
-            setIsFlipped(false);
-          } 
-        }
-      ]
-    );
+  const handleMarkLearned = async (id) => {
+    const isLast = currentIndex === flashcards.length - 1;
+    await markFlashcardAsLearned(id);
+    if (isLast && currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+    setIsFlipped(false);
   };
 
   if (loading && flashcards.length === 0) {
@@ -104,8 +91,12 @@ const FlashcardsView = () => {
         <Text style={styles.progressText}>
           Fiszka {currentIndex + 1} z {flashcards.length}
         </Text>
-        <TouchableOpacity onPress={() => handleDelete(currentCard.id)}>
-          <Trash2 color="#ef4444" size={20} />
+        <TouchableOpacity 
+          style={styles.checkButton}
+          onPress={() => handleMarkLearned(currentCard.id)}
+        >
+          <Check color="#10b981" size={24} strokeWidth={3} />
+          <Text style={styles.checkButtonText}>Umiem</Text>
         </TouchableOpacity>
       </View>
 
@@ -216,7 +207,22 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 14,
     fontWeight: '600',
-    flex: 1,
+  },
+  checkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10b98115',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#10b98130',
+  },
+  checkButtonText: {
+    color: '#10b981',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   cardContainer: {
     height: width * 1.1,

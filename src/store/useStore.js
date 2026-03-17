@@ -142,13 +142,15 @@ export const useStore = create((set, get) => ({
   },
 
   generateFlashcards: async () => {
-    const { currentProject, materials, flashcards } = get();
+    const { currentProject, materials } = get();
     if (!currentProject || materials.length === 0) return;
 
     set({ loading: true });
     try {
+      // Get ALL flashcards (including learned) to avoid repeats in AI generation
+      const allFlashcards = await database.getFlashcards(currentProject.id, true);
       const context = materials.map(m => m.content).join('\n\n');
-      const newCards = await aiService.generateFlashcards(context, flashcards);
+      const newCards = await aiService.generateFlashcards(context, allFlashcards);
       
       await database.saveFlashcards(currentProject.id, newCards);
       await get().fetchFlashcards(currentProject.id);
@@ -164,6 +166,18 @@ export const useStore = create((set, get) => ({
   deleteFlashcard: async (id) => {
     try {
       await database.deleteFlashcard(id);
+      const projectId = get().currentProject?.id;
+      if (projectId) {
+        await get().fetchFlashcards(projectId);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  },
+
+  markFlashcardAsLearned: async (id) => {
+    try {
+      await database.markFlashcardAsLearned(id);
       const projectId = get().currentProject?.id;
       if (projectId) {
         await get().fetchFlashcards(projectId);
